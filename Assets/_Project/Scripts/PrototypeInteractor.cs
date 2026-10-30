@@ -11,11 +11,16 @@ namespace Motel
         [SerializeField, Range(0.1f, 2.5f)] private float interactionDistance = 2.5f;
 
         private PrototypeDoor target;
+        private EmergencyCutoff cutoff;
+        private MotelLoopController loop;
         private GUIStyle labelStyle;
+
+        private void Start() => loop = FindAnyObjectByType<MotelLoopController>();
 
         private void Update()
         {
             target = null;
+            cutoff = null;
             if (player == null || viewCamera == null || !player.HasControl)
                 return;
 
@@ -25,16 +30,23 @@ namespace Motel
             // Use the FIRST solid hit, including walls. The player uses Ignore Raycast layer.
             if (Physics.Raycast(ray, out RaycastHit hit, interactionDistance,
                     Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
                 target = hit.collider.GetComponentInParent<PrototypeDoor>();
+                cutoff = hit.collider.GetComponentInParent<EmergencyCutoff>();
+            }
 
-            if (target != null && player.InteractionPressed)
-                target.Toggle();
+            if (player.InteractionPressed)
+            {
+                if (cutoff != null) cutoff.Interact();
+                else if (target != null) target.Toggle();
+            }
         }
 
         private void OnGUI()
         {
             if (player == null)
                 return;
+            if (loop != null && loop.SuppressInteractionUI) return;
 
             if (labelStyle == null)
             {
@@ -50,7 +62,9 @@ namespace Motel
             if (player.HasControl)
             {
                 GUI.DrawTexture(new Rect(Screen.width * 0.5f - 2f, Screen.height * 0.5f - 2f, 4f, 4f), Texture2D.whiteTexture);
-                if (target != null)
+                if (cutoff != null)
+                    DrawLabel(cutoff.Prompt, Screen.height * 0.5f + 24f);
+                else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }
             else

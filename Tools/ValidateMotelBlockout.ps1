@@ -1,5 +1,7 @@
 param([string]$UnityData)
 $ErrorActionPreference = 'Stop'
+$previousProcessorCount = $env:DOTNET_PROCESSOR_COUNT
+$env:DOTNET_PROCESSOR_COUNT = '2'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $projectRoot
 try {
@@ -14,7 +16,10 @@ try {
     New-Item -ItemType Directory -Path $outputPath | Out-Null
     $utf8 = [Text.UTF8Encoding]::new($false)
     $runtimeDll = (Join-Path $outputPath 'Assembly-CSharp.dll').Replace('\','/')
-    $runtimeRsp = Get-ChildItem Library/Bee/artifacts -Recurse -Filter Assembly-CSharp.rsp | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    # A failed Player build leaves newer, incomplete response files. Use the Editor pair.
+    $runtimeRsp = Get-ChildItem Library/Bee/artifacts -Recurse -Filter Assembly-CSharp.rsp |
+        Where-Object { Test-Path (Join-Path $_.DirectoryName 'Assembly-CSharp-Editor.rsp') } |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (!$runtimeRsp) { throw 'Unity compiler response files not found. Let Unity import and compile the project first.' }
     $editorRsp = Join-Path $runtimeRsp.DirectoryName 'Assembly-CSharp-Editor.rsp'
     $runtimeLines = @(Get-Content $runtimeRsp.FullName | Where-Object { $_ -notmatch '^-(out|refout):' -and $_ -notmatch '^"Assets[/\\]_Project[/\\]' })
@@ -66,4 +71,6 @@ public static class Check {
     Write-Output "Validation output: $outputPath"
 } finally {
     Pop-Location
+    if ($null -eq $previousProcessorCount) { Remove-Item Env:DOTNET_PROCESSOR_COUNT -ErrorAction SilentlyContinue }
+    else { $env:DOTNET_PROCESSOR_COUNT = $previousProcessorCount }
 }

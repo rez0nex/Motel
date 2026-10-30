@@ -21,8 +21,22 @@ namespace Motel
         private float verticalSpeed;
         private float pitch;
         private bool hasFocus;
+        private bool controlBlocked;
+        private int captureFrame = -1;
 
-        public bool HasControl => isActiveAndEnabled && hasFocus && Cursor.lockState == CursorLockMode.Locked;
+        // Only a scene with a loop opts in; Prototype retains its existing cursor behaviour.
+        public bool ExternalCursorControl { get; set; }
+        public void SetControlBlocked(bool blocked) => controlBlocked = blocked;
+        public void FreeCursor() => ReleaseCursor();
+        public void CaptureCursor()
+        {
+            if (!hasFocus) return;
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            captureFrame = Time.frameCount;
+        }
+
+        public bool HasControl => isActiveAndEnabled && !controlBlocked && hasFocus && Cursor.lockState == CursorLockMode.Locked;
         public bool InteractionPressed => HasControl && interact.WasPressedThisFrame();
 
         private void Awake()
@@ -72,9 +86,9 @@ namespace Motel
 
         private void Update()
         {
-            bool capturedThisFrame = UpdateCursor();
+            bool capturedThisFrame = !ExternalCursorControl && UpdateCursor();
             Vector3 horizontalVelocity = Vector3.zero;
-            if (HasControl && !capturedThisFrame)
+            if (HasControl && !capturedThisFrame && captureFrame != Time.frameCount)
             {
                 // Mouse delta is already a per-frame displacement; do not multiply by deltaTime.
                 Vector2 mouseDelta = look.ReadValue<Vector2>() * mouseSensitivity;
@@ -95,6 +109,7 @@ namespace Motel
 
         private bool UpdateCursor()
         {
+            if (controlBlocked) return false;
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 ReleaseCursor();
