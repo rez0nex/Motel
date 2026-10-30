@@ -1,0 +1,73 @@
+using UnityEngine;
+
+namespace Motel
+{
+    [DisallowMultipleComponent]
+    [DefaultExecutionOrder(10)]
+    public sealed class PrototypeInteractor : MonoBehaviour
+    {
+        [SerializeField] private FirstPersonController player;
+        [SerializeField] private Camera viewCamera;
+        [SerializeField, Range(0.1f, 2.5f)] private float interactionDistance = 2.5f;
+
+        private PrototypeDoor target;
+        private GUIStyle labelStyle;
+
+        private void Update()
+        {
+            target = null;
+            if (player == null || viewCamera == null || !player.HasControl)
+                return;
+
+            Ray ray = viewCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            // Start at the camera itself so the distance includes its near clipping plane.
+            ray.origin = viewCamera.transform.position;
+            // Use the FIRST solid hit, including walls. The player uses Ignore Raycast layer.
+            if (Physics.Raycast(ray, out RaycastHit hit, interactionDistance,
+                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                target = hit.collider.GetComponentInParent<PrototypeDoor>();
+
+            if (target != null && player.InteractionPressed)
+                target.Toggle();
+        }
+
+        private void OnGUI()
+        {
+            if (player == null)
+                return;
+
+            if (labelStyle == null)
+            {
+                labelStyle = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize = 20,
+                    wordWrap = true
+                };
+                labelStyle.normal.textColor = Color.white;
+            }
+
+            if (player.HasControl)
+            {
+                GUI.DrawTexture(new Rect(Screen.width * 0.5f - 2f, Screen.height * 0.5f - 2f, 4f, 4f), Texture2D.whiteTexture);
+                if (target != null)
+                    DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
+            }
+            else
+            {
+                DrawLabel("Щёлкните в игровом окне, чтобы управлять", Screen.height * 0.5f + 24f);
+            }
+        }
+
+        private void DrawLabel(string text, float y)
+        {
+            float width = Mathf.Min(620f, Screen.width - 16f);
+            Rect rect = new Rect((Screen.width - width) * 0.5f, y, width, 60f);
+            Color previous = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.75f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previous;
+            GUI.Label(rect, text, labelStyle);
+        }
+    }
+}
