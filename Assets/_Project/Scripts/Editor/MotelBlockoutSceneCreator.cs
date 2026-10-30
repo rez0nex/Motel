@@ -130,6 +130,8 @@ namespace Motel.Editor
                 CheckPlayerReferences(player);
                 MotelBlockoutSigns.Rebuild(plan, Child(root, "Signs"));
                 CreateLights(plan, Child(root, "Lighting"));
+                MotelLoopSceneSetup.Create(root, player.GetComponent<FirstPersonController>(), materials);
+                MotelLoopChecks.ValidateScene(scene);
                 if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Could not save " + ScenePath);
                 Debug.Log(report + "\nScene saved: " + ScenePath);
             }
@@ -209,7 +211,8 @@ namespace Motel.Editor
                 ["Wall"] = new Color(0.68f, 0.65f, 0.56f), ["Ceiling"] = new Color(0.82f, 0.82f, 0.78f),
                 ["Furniture"] = new Color(0.3f, 0.19f, 0.12f), ["Equipment"] = new Color(0.23f, 0.3f, 0.35f),
                 ["Marker"] = new Color(0.12f, 0.55f, 0.25f), ["Asphalt"] = new Color(0.16f, 0.17f, 0.18f),
-                ["Paving"] = new Color(0.4f, 0.43f, 0.44f), ["Paint"] = new Color(0.95f, 0.85f, 0.5f)
+                ["Paving"] = new Color(0.4f, 0.43f, 0.44f), ["Paint"] = new Color(0.95f, 0.85f, 0.5f),
+                ["Glass"] = new Color(0.55f, 0.77f, 0.85f, 0.2f)
             };
             var result = new Dictionary<string, Material>();
             foreach (var entry in colors)
@@ -221,6 +224,20 @@ namespace Motel.Editor
                     material = new Material(shader) { name = entry.Key };
                     material.SetColor("_BaseColor", entry.Value);
                     material.SetFloat("_Smoothness", 0.1f);
+                    if (entry.Key == "Glass")
+                    {
+                        material.SetFloat("_Surface", 1);
+                        material.SetFloat("_Blend", 0);
+                        material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                        material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                        material.SetFloat("_ZWrite", 0);
+                        material.SetFloat("_Cull", (float)CullMode.Off);
+                        material.SetFloat("_Smoothness", 0.65f);
+                        material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                        material.SetOverrideTag("RenderType", "Transparent");
+                        material.SetShaderPassEnabled("ShadowCaster", false);
+                        material.renderQueue = (int)RenderQueue.Transparent;
+                    }
                     AssetDatabase.CreateAsset(material, path);
                     AssetDatabase.SaveAssetIfDirty(material);
                 }

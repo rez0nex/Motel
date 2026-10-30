@@ -14,6 +14,7 @@ namespace Motel.Editor
         public readonly List<Sign> Signs = new List<Sign>();
         public readonly List<Zone> Zones = new List<Zone>();
         public readonly List<MotelGuestRoomModule.Layout> Rooms = new List<MotelGuestRoomModule.Layout>();
+        public readonly List<Window> Windows = new List<Window>();
         public readonly float SpawnX = 1.55f, SpawnZ = -13.6f, SpawnYaw = 90;
 
         public sealed class Box
@@ -44,6 +45,12 @@ namespace Motel.Editor
             public float Center, Width;
             public Opening(float center, float width) { Center = center; Width = width; }
         }
+        public sealed class Window
+        {
+            public string Name;
+            public float X, Z, Width;
+            public const float Sill = 1.1f, Top = 2.2f;
+        }
 
         public static MotelBlockoutPlan Create()
         {
@@ -64,9 +71,10 @@ namespace Motel.Editor
                     (GuestStart + WingEnd) / 2, 2.9f, direction * (OuterZ + 1.2f) / 2, WingEnd - GuestStart + 0.16f, 0.2f, roomDepth);
             Add("Corridor Ceiling", "Ceilings", "Ceiling", (3.6f + WingEnd) / 2, 2.9f, 0, WingEnd - 3.6f, 0.2f, 2.4f);
             Add("Service Ceiling", "Ceilings", "Ceiling", 3, 2.9f, -8.6f, 6.16f, 0.2f, 14.8f);
-            WallX("North Exterior", GuestStart, WingEnd, OuterZ);
-            WallX("South Exterior", GuestStart, WingEnd, -OuterZ);
-            WallX("Reception Back", 0, 6, -16);
+            float[] roomWindows = Enumerable.Range(0, 4).Select(i => GuestStart + i * RoomPitch + 0.08f + 1.6f).ToArray();
+            WallWithWindows("North Exterior", GuestStart, WingEnd, OuterZ, roomWindows);
+            WallWithWindows("South Exterior", GuestStart, WingEnd, -OuterZ, roomWindows);
+            WallWithWindows("Reception Back", 0, 6, -16, new[] { 4.7f });
             WallZ("Service West Exterior", 0, -16, -1.2f);
             WallZ("Corridor West", 3.6f, -1.2f, 1.2f);
             WallX("Corridor Turn North", 3.6f, GuestStart, 1.2f);
@@ -137,6 +145,35 @@ namespace Motel.Editor
             ZoneAt("L01", 7, 26, -20.5f, -10.5f, 18, -18.1f);
             ZoneAt("L05", WingEnd + 0.1f, WingEnd + 3.4f, -19, 1.2f, WingEnd + 2, 0);
             ZoneAt("L12", -3, 33, -25, -21, 18, -23);
+        }
+
+        private void WallWithWindows(string name, float start, float end, float z, float[] centers)
+        {
+            const float width = 1.6f, rim = 0.055f;
+            float cursor = start;
+            for (int i = 0; i < centers.Length; i++)
+            {
+                float x = centers[i], left = x - width / 2, right = x + width / 2;
+                WallBox(name + " Segment " + i, (cursor + left) / 2, z, left - cursor, Height / 2, Height, false);
+                WallBox(name + " Sill " + i, x, z, width, Window.Sill / 2, Window.Sill, false);
+                WallBox(name + " Lintel " + i, x, z, width, (Window.Top + Height) / 2, Height - Window.Top, false);
+                string id = name + " Window " + i;
+                Windows.Add(new Window { Name = id, X = x, Z = z, Width = width });
+                Add(id + " Glass", "Windows", "Glass", x, (Window.Sill + Window.Top) / 2, z,
+                    width - rim * 2, Window.Top - Window.Sill - rim * 2, 0.035f);
+                foreach (int side in new[] { -1, 1 })
+                {
+                    Add(id + " Vertical " + side, "Windows", "Equipment", x + side * (width - rim) / 2,
+                        (Window.Sill + Window.Top) / 2, z, rim, Window.Top - Window.Sill, 0.18f);
+                    Add(id + " Horizontal " + side, "Windows", "Equipment", x,
+                        (Window.Sill + Window.Top) / 2 + side * (Window.Top - Window.Sill - rim) / 2,
+                        z, width, rim, 0.18f);
+                }
+                Add(id + " Mullion", "Windows", "Equipment", x, (Window.Sill + Window.Top) / 2,
+                    z, rim, Window.Top - Window.Sill, 0.12f);
+                cursor = right;
+            }
+            WallBox(name + " Segment " + centers.Length, (cursor + end) / 2, z, end - cursor, Height / 2, Height, false);
         }
 
         internal void WallX(string name, float start, float end, float z, params float[] openings)

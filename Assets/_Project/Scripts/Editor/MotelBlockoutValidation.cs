@@ -15,6 +15,16 @@ namespace Motel.Editor
             Require(p.Doors.Count == 22 && p.Doors.Count(d=>d.Operable) == 18, "Door count");
             Require(p.Boxes.Select(b=>b.Name).Distinct().Count() == p.Boxes.Count, "Duplicate geometry names");
             Require(p.Signs.Count == 22 && p.Signs.Select(s=>s.Id).Distinct().Count() == 22, "Duplicate sign identity");
+            Require(p.Windows.Count == 9, "One window per room and reception");
+            foreach (var window in p.Windows)
+            {
+                var glass = p.Boxes.Single(b => b.Name == window.Name + " Glass");
+                Require(glass.Solid && glass.Material == "Glass" && glass.Y - glass.Height / 2 > 1,
+                    "Window must have solid glazing above the sill");
+                Require(!p.Boxes.Any(b => b.Group == "Walls" && Math.Abs(b.Z - window.Z) < 0.01 &&
+                    Math.Abs(b.X - window.X) < b.Width / 2 && b.Y - b.Height / 2 < 1.6f && b.Y + b.Height / 2 > 1.6f),
+                    "Window aperture is filled by a wall");
+            }
             foreach (var b in p.Boxes) Require(b.Width > 0 && b.Height > 0 && b.Depth > 0, "Invalid box " + b.Name);
             foreach (var d in p.Doors) Require(d.Width >= 1 && Math.Abs(d.OpenAngle) == 95, "Door size or angle " + d.Name);
             foreach (var r in p.Rooms)
