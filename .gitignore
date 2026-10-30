@@ -1,0 +1,43 @@
+# Unity: generated local data and build output
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE-generated projects and caches
+/.vs/
+/.idea/
+/.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Editor temporary files and OS metadata
+*~
+*.swp
+*.swo
+.#*
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Unity crash reports
+/sysinfo.txt
+
+# Keep Assets (including all .meta), Packages and ProjectSettings tracked.
