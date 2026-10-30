@@ -26,8 +26,9 @@ namespace Motel.Editor
                     "Перезаписать", "Отмена")) return;
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
-            // Close the previous blockout before saving another scene at its path.
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            // A saved staging scene also avoids Unity's restriction on additive creation beside an untitled scene.
+            // Prototype is opened only as a template and is never saved or modified here.
+            EditorSceneManager.OpenScene(PrototypePath, OpenSceneMode.Single);
             try
             {
                 BuildAndSave(true);
@@ -103,8 +104,17 @@ namespace Motel.Editor
                     clone.name = door.Name + (door.Operable ? "" : " (Closed)");
                     clone.transform.SetParent(doors, false);
                     Quaternion rotation = Quaternion.Euler(0, door.Yaw, 0);
-                    clone.transform.localPosition = new Vector3(door.X, 0, door.Z) - rotation * Vector3.right * 0.75f;
+                    clone.transform.localPosition = new Vector3(door.X, 0, door.Z) - rotation * Vector3.right * (door.Width / 2);
                     clone.transform.localRotation = rotation;
+                    BoxCollider panel = clone.GetComponentsInChildren<BoxCollider>().Single();
+                    panel.transform.localPosition = new Vector3(door.Width / 2, 1.14f, 0);
+                    panel.transform.localScale = new Vector3(door.Width - 0.02f, 2.24f, 0.12f);
+                    foreach (Transform part in clone.transform)
+                        if (part.name == "Door Handle" || part.name == "Inside Handle")
+                            part.localPosition = new Vector3(door.Width - 0.2f, part.localPosition.y, part.localPosition.z);
+                    SerializedObject doorData = new SerializedObject(clone.GetComponent<PrototypeDoor>());
+                    doorData.FindProperty("openAngle").floatValue = door.OpenAngle;
+                    doorData.ApplyModifiedPropertiesWithoutUndo();
                     if (!door.Operable)
                     {
                         Object.DestroyImmediate(clone.GetComponent<PrototypeDoor>());
@@ -116,7 +126,7 @@ namespace Motel.Editor
                 SceneManager.MoveGameObjectToScene(player, scene);
                 player.name = "Player";
                 player.transform.position = new Vector3(plan.SpawnX, 0.05f, plan.SpawnZ);
-                player.transform.rotation = Quaternion.identity;
+                player.transform.rotation = Quaternion.Euler(0, plan.SpawnYaw, 0);
                 CheckPlayerReferences(player);
                 MotelBlockoutSigns.Rebuild(plan, Child(root, "Signs"));
                 CreateLights(plan, Child(root, "Lighting"));
@@ -168,8 +178,13 @@ namespace Motel.Editor
             main.intensity = 1;
             main.shadows = LightShadows.Soft;
             RenderSettings.sun = main;
-            for (int i = 0; i < 6; i++) PointLight(parent, "Corridor Light " + i, 1.5f + 4 * i, 0);
-            foreach (var zone in plan.Zones.Where(z => z.Id.StartsWith("Room") || z.Id == "L04" || z.Id == "L11" || z.Id == "L06"))
+            for (int i = 0; i < 6; i++) PointLight(parent, "Corridor Light " + i, 4.8f + 4 * i, 0);
+            foreach (var room in plan.Rooms)
+            {
+                PointLight(parent, room.Id + " Living Light", room.X(2.5f), room.Z(4.5f));
+                PointLight(parent, room.Id + " Bathroom Light", room.X(3.5f), room.Z(1.1f));
+            }
+            foreach (var zone in plan.Zones.Where(z => z.Id == "L04" || z.Id == "L11" || z.Id == "L06"))
                 PointLight(parent, zone.Id + " Light", (zone.MinX + zone.MaxX) / 2, (zone.MinZ + zone.MaxZ) / 2);
             foreach (float z in new[] { -3f, -7f, -10f, -13.5f }) PointLight(parent, "Service Light " + z, 4.8f, z);
             PointLight(parent, "Reception Light", 1.7f, -14.8f);

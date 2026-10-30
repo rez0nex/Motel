@@ -52,6 +52,7 @@ public static class Check {
     $referencePack = Get-ChildItem "$UnityData/DotNetSdk/packs/Microsoft.NETCore.App.Ref" -Directory | Sort-Object Name -Descending | Select-Object -First 1
     $lines += @(Get-ChildItem (Join-Path $referencePack.FullName 'ref/net8.0') -Filter '*.dll' | ForEach-Object { '-r:"' + $_.FullName + '"' })
     $lines += '"Assets/_Project/Scripts/Editor/MotelBlockoutPlan.cs"'
+    $lines += '"Assets/_Project/Scripts/Editor/MotelGuestRoomModule.cs"'
     $lines += '"Assets/_Project/Scripts/Editor/MotelBlockoutValidation.cs"'
     $lines += '"' + $runner + '"'
     $checkRsp = Join-Path $outputPath 'check.rsp'

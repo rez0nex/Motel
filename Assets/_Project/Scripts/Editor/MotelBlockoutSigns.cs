@@ -27,7 +27,7 @@ namespace Motel.Editor
             Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             foreach (var sign in plan.Signs)
             {
-                Transform plaque = new GameObject("Sign " + sign.Text).transform;
+                Transform plaque = new GameObject("Sign " + (string.IsNullOrEmpty(sign.Id) ? sign.Text : sign.Id)).transform;
                 plaque.SetParent(parent, false);
                 plaque.localPosition = new Vector3(sign.X, sign.Y, sign.Z);
                 plaque.localRotation = Quaternion.Euler(0, sign.Yaw, 0);
