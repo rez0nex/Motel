@@ -15,6 +15,8 @@ namespace Motel
         private bool wantsOpen;
 
         public string Prompt => wantsOpen ? "E — закрыть" : "E — открыть";
+        // NPCs wait outside the swing until the existing door has finished opening.
+        public bool IsFullyOpen => wantsOpen && Mathf.Abs(currentAngle - openAngle) < 0.5f;
 
         private void Awake()
         {

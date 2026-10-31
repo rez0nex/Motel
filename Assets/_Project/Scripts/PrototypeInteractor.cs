@@ -12,16 +12,26 @@ namespace Motel
 
         private PrototypeDoor target;
         private EmergencyCutoff cutoff;
+        private LeonidEvacuee leonid;
+        private CanePickup cane;
+        private LeonidEvacuee episode;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
 
-        private void Start() => loop = FindAnyObjectByType<MotelLoopController>();
+        private void Start()
+        {
+            loop = FindAnyObjectByType<MotelLoopController>();
+            episode = FindAnyObjectByType<LeonidEvacuee>();
+        }
 
         private void Update()
         {
             target = null;
             cutoff = null;
-            if (player == null || viewCamera == null || !player.HasControl)
+            leonid = null;
+            cane = null;
+            if (player == null || viewCamera == null || !player.HasControl ||
+                loop != null && loop.SuppressInteractionUI)
                 return;
 
             Ray ray = viewCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
@@ -33,11 +43,15 @@ namespace Motel
             {
                 target = hit.collider.GetComponentInParent<PrototypeDoor>();
                 cutoff = hit.collider.GetComponentInParent<EmergencyCutoff>();
+                leonid = hit.collider.GetComponentInParent<LeonidEvacuee>();
+                cane = hit.collider.GetComponentInParent<CanePickup>();
             }
 
             if (player.InteractionPressed)
             {
                 if (cutoff != null) cutoff.Interact();
+                else if (leonid != null) leonid.Interact();
+                else if (cane != null) cane.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -64,6 +78,10 @@ namespace Motel
                 GUI.DrawTexture(new Rect(Screen.width * 0.5f - 2f, Screen.height * 0.5f - 2f, 4f, 4f), Texture2D.whiteTexture);
                 if (cutoff != null)
                     DrawLabel(cutoff.Prompt, Screen.height * 0.5f + 24f);
+                else if (leonid != null)
+                    DrawLabel(leonid.Prompt, Screen.height * 0.5f + 24f);
+                else if (cane != null)
+                    DrawLabel(cane.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }
@@ -71,6 +89,8 @@ namespace Motel
             {
                 DrawLabel("Щёлкните в игровом окне, чтобы управлять", Screen.height * 0.5f + 24f);
             }
+            if (episode != null && episode.CarryingCane)
+                DrawLabel("Вы несёте трость · поговорите с Леонидом, чтобы передать её", Screen.height - 110f);
         }
 
         private void DrawLabel(string text, float y)

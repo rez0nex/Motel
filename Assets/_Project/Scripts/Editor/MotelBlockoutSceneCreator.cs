@@ -131,7 +131,9 @@ namespace Motel.Editor
                 MotelBlockoutSigns.Rebuild(plan, Child(root, "Signs"));
                 CreateLights(plan, Child(root, "Lighting"));
                 MotelLoopSceneSetup.Create(root, player.GetComponent<FirstPersonController>(), materials);
+                MotelLeonidSceneSetup.Create(root);
                 MotelLoopChecks.ValidateScene(scene);
+                MotelLeonidChecks.ValidateScene(scene);
                 if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Could not save " + ScenePath);
                 Debug.Log(report + "\nScene saved: " + ScenePath);
             }
