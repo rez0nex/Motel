@@ -16,6 +16,7 @@ namespace Motel
         [SerializeField] private GameObject damagedEquipment;
         [SerializeField] private Light[] accidentLights;
         [SerializeField] private bool debugSixtySecondCycle;
+        [SerializeField] private DialogueController dialogue;
 
         private static ObservationStore knowledge;
         private static bool? sessionDebug;
@@ -32,8 +33,26 @@ namespace Motel
         public bool IsPaused => paused;
         public bool Transitioning => clock.AccidentRequested;
         public bool DebugCycle => sessionDebug ?? debugSixtySecondCycle;
-        public bool SuppressInteractionUI => observationsOpen || Transitioning;
+        public bool DialogueOpen => dialogue != null && dialogue.IsOpen;
+        public bool SuppressInteractionUI => observationsOpen || Transitioning || DialogueOpen;
         public static bool KnowsCutoff => knowledge != null && knowledge.HasCutoffFact;
+        public static bool KnowsLeonidRescue => knowledge != null && knowledge.HasLeonidFact;
+
+        public void ConfigureDialogue(DialogueController window) => dialogue = window;
+
+        public void RefreshPlayerControl()
+        {
+            if (player == null) return;
+            bool blocked = paused || observationsOpen || Transitioning || DialogueOpen;
+            player.SetControlBlocked(blocked);
+            if (blocked) player.FreeCursor();
+            else player.CaptureCursor();
+        }
+
+        public void RememberLeonidRescue()
+        {
+            if (!Transitioning) knowledge.RememberLeonidRescue();
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void BeginSession()
@@ -93,9 +112,10 @@ namespace Motel
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
                 observationsOpen = false;
+                if (dialogue != null) dialogue.Close();
                 SetPaused(true);
             }
-            else if (!Transitioning && keyboard != null && keyboard.jKey.wasPressedThisFrame)
+            else if (!Transitioning && !DialogueOpen && keyboard != null && keyboard.jKey.wasPressedThisFrame)
             {
                 observationsOpen = !observationsOpen;
                 SetPaused(observationsOpen);
@@ -113,7 +133,7 @@ namespace Motel
                 sessionDebug = !DebugCycle;
 
             Time.timeScale = paused ? 0 : 1;
-            player.SetControlBlocked(paused || observationsOpen || Transitioning);
+            player.SetControlBlocked(paused || observationsOpen || Transitioning || DialogueOpen);
             // The delta of the click frame belongs to the preceding paused interval.
             clock.Advance(Time.unscaledDeltaTime, paused || resumedThisFrame, DebugCycle);
             resumedThisFrame = false;
@@ -126,9 +146,7 @@ namespace Motel
             if (paused && !value) resumedThisFrame = true;
             paused = value;
             Time.timeScale = value ? 0 : 1;
-            player.SetControlBlocked(value || observationsOpen || Transitioning);
-            if (value) player.FreeCursor();
-            else player.CaptureCursor();
+            RefreshPlayerControl();
         }
 
         private void OnApplicationFocus(bool focused)
@@ -154,6 +172,7 @@ namespace Motel
                 equipmentIndicator.SetActive(false);
                 knowledge.RememberCutoff();
             }
+            if (dialogue != null) dialogue.Close();
             player.SetControlBlocked(true);
             StartCoroutine(AccidentAndReload(fromCutoff));
             return true;
@@ -221,18 +240,19 @@ namespace Motel
             }
             if (DebugCycle)
                 GUI.Label(new Rect(12, 10, Screen.width - 24, 32), "ОТЛАДКА · полный цикл за 60 с", bodyStyle);
-            if (!Transitioning)
+            if (!Transitioning && !DialogueOpen)
                 GUI.Label(new Rect(12, Screen.height - 36, Screen.width - 24, 30), "J — наблюдения" +
                     (paused && !observationsOpen ? "    |    F6 — обычная / отладочная скорость" : ""), bodyStyle);
-            if (Transitioning && paused)
+            if ((Transitioning || DialogueOpen) && paused)
                 GUI.Label(new Rect(12, Screen.height / 2f, Screen.width - 24, 50), "Пауза · щёлкните, чтобы продолжить", titleStyle);
             if (!observationsOpen) return;
             float width = Mathf.Min(660, Screen.width - 24), height = Mathf.Min(310, Screen.height - 70);
             Rect panel = new Rect((Screen.width - width) / 2, (Screen.height - height) / 2, width, height);
             GUI.Box(panel, GUIContent.none);
             GUI.Label(new Rect(panel.x + 16, panel.y + 14, width - 32, 40), "Наблюдения", titleStyle);
-            GUI.Label(new Rect(panel.x + 24, panel.y + 70, width - 48, 90), knowledge.HasCutoffFact
-                ? "• " + ObservationStore.CutoffFact : "Пока нет наблюдений.", bodyStyle);
+            string facts = knowledge.HasCutoffFact ? "• " + ObservationStore.CutoffFact : "";
+            if (knowledge.HasLeonidFact) facts += (facts.Length > 0 ? "\n" : "") + "• " + ObservationStore.LeonidFact;
+            GUI.Label(new Rect(panel.x + 24, panel.y + 70, width - 48, 90), facts.Length > 0 ? facts : "Пока нет наблюдений.", bodyStyle);
             if (!string.IsNullOrEmpty(knowledge.Warning))
                 GUI.Label(new Rect(panel.x + 24, panel.y + 160, width - 48, 65), knowledge.Warning, bodyStyle);
             if (GUI.Button(new Rect(panel.x + width / 2 - 100, panel.yMax - 55, 200, 38), "Закрыть · J"))
