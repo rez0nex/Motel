@@ -50,7 +50,7 @@ namespace Motel.Editor
             Transform sleeping = Child(npc, "Sleeping Placeholder");
             sleeping.localPosition = new Vector3(0.5f, 0.85f, 1.55f);
             sleeping.localRotation = Quaternion.Euler(0, 0, -90);
-            Person(sleeping);
+            MotelGuestVisuals.Person(sleeping);
             // Person coordinates are centred on a standing torso; recline along the bed's X axis.
             sleeping.localPosition -= sleeping.localRotation * new Vector3(0, 1.05f, 0);
             var target = npc.gameObject.AddComponent<BoxCollider>();
@@ -58,7 +58,7 @@ namespace Motel.Editor
             target.size = new Vector3(1.7f, 0.55f, 0.55f);
 
             Transform standing = Child(npc, "Standing Placeholder");
-            Person(standing);
+            MotelGuestVisuals.Person(standing);
             standing.gameObject.SetActive(false);
             Transform carried = Cane(standing, "Held Cane", new Vector3(0.32f, 0.02f, 0.05f));
             carried.gameObject.SetActive(false);
@@ -71,19 +71,6 @@ namespace Motel.Editor
             collider.center = new Vector3(0.04f, 0.5f, 0);
             collider.size = new Vector3(0.22f, 1.02f, 0.18f);
             pickup.gameObject.AddComponent<CanePickup>().Configure(leonid);
-        }
-
-        private static void Person(Transform parent)
-        {
-            Primitive(parent, "Torso", PrimitiveType.Capsule, new Vector3(0, 1.05f, 0), new Vector3(0.4f, 0.36f, 0.3f), "Equipment");
-            Primitive(parent, "Head", PrimitiveType.Sphere, new Vector3(0, 1.54f, 0), new Vector3(0.28f, 0.32f, 0.28f), "Ceiling");
-            // Nose makes the facing direction readable without an animation or an imported model.
-            Primitive(parent, "Nose", PrimitiveType.Cube, new Vector3(0, 1.54f, 0.15f), new Vector3(0.06f, 0.06f, 0.06f), "Ceiling");
-            foreach (int side in new[] { -1, 1 })
-            {
-                Primitive(parent, "Leg " + side, PrimitiveType.Cube, new Vector3(side * 0.11f, 0.4f, 0), new Vector3(0.15f, 0.8f, 0.18f), "Furniture");
-                Primitive(parent, "Arm " + side, PrimitiveType.Cube, new Vector3(side * 0.26f, 1.01f, 0), new Vector3(0.11f, 0.55f, 0.13f), "Equipment");
-            }
         }
 
         private static Transform Cane(Transform parent, string name, Vector3 position)
