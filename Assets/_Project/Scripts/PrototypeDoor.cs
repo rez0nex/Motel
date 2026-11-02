@@ -13,14 +13,17 @@ namespace Motel
         private Quaternion closedLocalRotation;
         private float currentAngle;
         private bool wantsOpen;
+        private RoomEightLock access;
 
-        public string Prompt => wantsOpen ? "E — закрыть" : "E — открыть";
+        public string Prompt => wantsOpen ? "E — закрыть" : access != null && !access.CanOpen
+            ? "E — заперто · нужны ключи № 8" : "E — открыть";
         // NPCs wait outside the swing until the existing door has finished opening.
         public bool IsFullyOpen => wantsOpen && Mathf.Abs(currentAngle - openAngle) < 0.5f;
 
         private void Awake()
         {
             body = GetComponent<Rigidbody>();
+            access = GetComponent<RoomEightLock>();
             body.isKinematic = true;
             body.useGravity = false;
             body.interpolation = RigidbodyInterpolation.Interpolate;
@@ -30,6 +33,7 @@ namespace Motel
 
         public void Toggle()
         {
+            if (!wantsOpen && access != null && !access.CanOpen) return;
             wantsOpen = !wantsOpen;
         }
 

@@ -42,6 +42,13 @@ namespace Motel
         public static bool KnowsLeonidRescue => knowledge != null && knowledge.HasLeonidFact;
         public static bool KnowsEquipmentOverheat => knowledge != null && knowledge.HasEquipmentFact;
         public static bool KnowsVadimRescue => knowledge != null && knowledge.HasVadimFact;
+        public static bool KnowsFamilyPlacement => knowledge != null && knowledge.HasFamilyFact;
+        public static bool KnowsMarinaRescue => knowledge != null && knowledge.HasMarinaFact;
+        public static bool KnowsLeraRescue => knowledge != null && knowledge.HasLeraFact;
+
+        public void RememberFamilyPlacement() { if (!Transitioning) knowledge.RememberFamilyPlacement(); }
+        public void RememberMarinaRescue() { if (!Transitioning) knowledge.RememberMarinaRescue(); }
+        public void RememberLeraRescue() { if (!Transitioning) knowledge.RememberLeraRescue(); }
 
         public void ConfigureDialogue(DialogueController window) => dialogue = window;
 
@@ -260,7 +267,8 @@ namespace Motel
             if (!Transitioning && !DialogueOpen)
                 GUI.Label(new Rect(12, Screen.height - 36, Screen.width - 24, 30), "J — наблюдения" +
                     (paused && !observationsOpen ? "    |    F6 — обычная / отладочная скорость" : ""), bodyStyle);
-            if ((Transitioning || DialogueOpen) && paused)
+            // The dialogue already owns its pause hint; keep the NPC line unobscured.
+            if (Transitioning && paused)
                 GUI.Label(new Rect(12, Screen.height / 2f, Screen.width - 24, 50), "Пауза · щёлкните, чтобы продолжить", titleStyle);
             if (!observationsOpen) return;
             float width = Mathf.Min(660, Screen.width - 24), height = Mathf.Min(450, Screen.height - 50);

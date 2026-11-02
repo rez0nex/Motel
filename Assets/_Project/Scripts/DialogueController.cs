@@ -18,8 +18,10 @@ namespace Motel
         private Choice[] choices = Array.Empty<Choice>();
         private string speaker, line;
         private GUIStyle heading, body, button;
+        private GUIStyle topicStyle;
         public bool IsOpen { get; private set; }
         public string Speaker => speaker;
+        public string Topic { get; private set; }
         public int ChoiceCount => choices.Length;
         public UnityEngine.Object Participant { get; private set; }
 
@@ -32,11 +34,19 @@ namespace Motel
         {
             if (loop == null || loop.IsPaused || loop.Transitioning) return false;
             speaker = name;
+            Topic = null;
             Participant = participant;
             line = text;
             choices = options ?? Array.Empty<Choice>();
             IsOpen = true;
             loop.RefreshPlayerControl();
+            return true;
+        }
+
+        public bool ShowTopicFor(UnityEngine.Object participant, string name, string topic, string text, params Choice[] options)
+        {
+            if (!ShowFor(participant, name, text, options)) return false;
+            Topic = topic;
             return true;
         }
 
@@ -53,6 +63,7 @@ namespace Motel
         {
             IsOpen = false;
             Participant = null;
+            Topic = null;
             choices = Array.Empty<Choice>();
             if (loop != null) loop.RefreshPlayerControl();
         }
@@ -65,6 +76,8 @@ namespace Motel
                 heading = new GUIStyle(GUI.skin.label) { fontSize = 24, fontStyle = FontStyle.Bold };
                 body = new GUIStyle(GUI.skin.label) { fontSize = 20, wordWrap = true };
                 button = new GUIStyle(GUI.skin.button) { fontSize = 18, wordWrap = true };
+                topicStyle = new GUIStyle(GUI.skin.label) { fontSize = 15 };
+                topicStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
                 heading.normal.textColor = body.normal.textColor = Color.white;
             }
             // A logical canvas keeps all choices visible even in a small Game View.
@@ -72,15 +85,19 @@ namespace Motel
             float scale = Mathf.Min(Screen.width / 960f, Screen.height / 600f);
             float width = Screen.width / scale, height = Screen.height / scale;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
-            Rect panel = new Rect((width - 820) / 2, height - 345, 820, 325);
+            bool withTopic = !string.IsNullOrEmpty(Topic);
+            float panelHeight = withTopic ? 223 + 54 * Mathf.Max(1, choices.Length) : 325;
+            Rect panel = new Rect((width - 820) / 2, height - panelHeight - 20, 820, panelHeight);
             GUI.Box(panel, GUIContent.none);
-            GUI.Label(new Rect(panel.x + 22, panel.y + 12, 776, 38), speaker, heading);
-            GUI.Label(new Rect(panel.x + 22, panel.y + 56, 776, 95), line, body);
+            GUI.Label(new Rect(panel.x + 22, panel.y + 12, 776, 38), withTopic ? "Говорит: " + speaker : speaker, heading);
+            if (withTopic) GUI.Label(new Rect(panel.x + 22, panel.y + 44, 776, 24), "Тема: " + Topic, topicStyle);
+            GUI.Label(new Rect(panel.x + 22, panel.y + (withTopic ? 74 : 56), 776, withTopic ? 105 : 95), line, body);
             bool previousEnabled = GUI.enabled;
             GUI.enabled = !loop.IsPaused;
             for (int i = 0; i < choices.Length; i++)
             {
-                if (GUI.Button(new Rect(panel.x + 22, panel.y + 153 + i * 48, 776, 42), choices[i].Text, button))
+                if (GUI.Button(new Rect(panel.x + 22, panel.y + (withTopic ? 190 : 153) + i * (withTopic ? 54 : 48),
+                        776, withTopic ? 48 : 42), choices[i].Text, button))
                 {
                     Choose(i);
                     break;
