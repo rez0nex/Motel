@@ -13,6 +13,9 @@ namespace Motel
         public const string LeonidFact = "Леонид из номера 4 добрался до безопасного места на парковке";
         public const string EquipmentFact = "Диагностика агрегата показывает критический перегрев: требуется эвакуация";
         public const string VadimFact = "Вадим из номера 2 самостоятельно добрался до безопасного места на парковке";
+        public const string FamilyFact = "Марина приехала с дочерью Лерой; Лера размещена в соседнем номере 8";
+        public const string MarinaFact = "Марина из номера 7 добралась до места сбора на парковке";
+        public const string LeraFact = "Лера из номера 8 прошла с администратором к месту сбора на парковке";
         [Serializable]
         private sealed class SaveData
         {
@@ -21,6 +24,9 @@ namespace Motel
             public bool leonidRescued;
             public bool equipmentOverheatInspected;
             public bool vadimRescued;
+            public bool familyPlacementKnown;
+            public bool marinaRescued;
+            public bool leraRescued;
         }
 
         private readonly string path;
@@ -29,6 +35,9 @@ namespace Motel
         public bool HasLeonidFact { get; private set; }
         public bool HasEquipmentFact { get; private set; }
         public bool HasVadimFact { get; private set; }
+        public bool HasFamilyFact { get; private set; }
+        public bool HasMarinaFact { get; private set; }
+        public bool HasLeraFact { get; private set; }
         public string[] Facts
         {
             get
@@ -38,6 +47,9 @@ namespace Motel
                 if (HasEquipmentFact) facts.Add(EquipmentFact);
                 if (HasLeonidFact) facts.Add(LeonidFact);
                 if (HasVadimFact) facts.Add(VadimFact);
+                if (HasFamilyFact) facts.Add(FamilyFact);
+                if (HasMarinaFact) facts.Add(MarinaFact);
+                if (HasLeraFact) facts.Add(LeraFact);
                 return facts.ToArray();
             }
         }
@@ -55,6 +67,9 @@ namespace Motel
                 HasLeonidFact = data.leonidRescued;
                 HasEquipmentFact = data.equipmentOverheatInspected;
                 HasVadimFact = data.vadimRescued;
+                HasFamilyFact = data.familyPlacementKnown;
+                HasMarinaFact = data.marinaRescued;
+                HasLeraFact = data.leraRescued;
             }
             catch (Exception e) when (e is IOException || e is InvalidDataException || e is UnauthorizedAccessException || e is ArgumentException)
             {
@@ -97,6 +112,22 @@ namespace Motel
             return true;
         }
 
+        public bool RememberFamilyPlacement()
+        {
+            if (HasFamilyFact) return false;
+            HasFamilyFact = true; Save(); return true;
+        }
+        public bool RememberMarinaRescue()
+        {
+            if (HasMarinaFact) return false;
+            HasMarinaFact = true; Save(); return true;
+        }
+        public bool RememberLeraRescue()
+        {
+            if (HasLeraFact) return false;
+            HasLeraFact = true; Save(); return true;
+        }
+
         private void Save()
         {
             if (!canWrite) return;
@@ -106,7 +137,8 @@ namespace Motel
                 string temporary = path + ".tmp";
                 string json = JsonUtility.ToJson(new SaveData { version = 1, cutoffCausedExplosion = HasCutoffFact,
                     leonidRescued = HasLeonidFact, equipmentOverheatInspected = HasEquipmentFact,
-                    vadimRescued = HasVadimFact }, true);
+                    vadimRescued = HasVadimFact, familyPlacementKnown = HasFamilyFact,
+                    marinaRescued = HasMarinaFact, leraRescued = HasLeraFact }, true);
                 using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     byte[] bytes = new UTF8Encoding(false).GetBytes(json);

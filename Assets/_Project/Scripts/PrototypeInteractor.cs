@@ -17,6 +17,10 @@ namespace Motel
         private LeonidEvacuee episode;
         private VadimEvacuee vadim;
         private EquipmentInspection inspection;
+        private MarinaEvacuee marina;
+        private LeraEvacuee lera;
+        private RoomKeysPickup keys;
+        private FamilyEpisode family;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
 
@@ -24,6 +28,7 @@ namespace Motel
         {
             loop = FindAnyObjectByType<MotelLoopController>();
             episode = FindAnyObjectByType<LeonidEvacuee>();
+            family = FindAnyObjectByType<FamilyEpisode>();
         }
 
         private void Update()
@@ -34,6 +39,7 @@ namespace Motel
             cane = null;
             vadim = null;
             inspection = null;
+            marina = null; lera = null; keys = null;
             if (player == null || viewCamera == null || !player.HasControl ||
                 loop != null && loop.SuppressInteractionUI)
                 return;
@@ -51,6 +57,9 @@ namespace Motel
                 cane = hit.collider.GetComponentInParent<CanePickup>();
                 vadim = hit.collider.GetComponentInParent<VadimEvacuee>();
                 inspection = hit.collider.GetComponentInParent<EquipmentInspection>();
+                marina = hit.collider.GetComponentInParent<MarinaEvacuee>();
+                lera = hit.collider.GetComponentInParent<LeraEvacuee>();
+                keys = hit.collider.GetComponentInParent<RoomKeysPickup>();
             }
 
             if (player.InteractionPressed)
@@ -60,6 +69,9 @@ namespace Motel
                 else if (cane != null) cane.Interact();
                 else if (vadim != null) vadim.Interact();
                 else if (inspection != null) inspection.Interact();
+                else if (marina != null) marina.Interact();
+                else if (lera != null) lera.Interact();
+                else if (keys != null) keys.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -94,6 +106,12 @@ namespace Motel
                     DrawLabel(vadim.Prompt, Screen.height * 0.5f + 24f);
                 else if (inspection != null)
                     DrawLabel(inspection.Prompt, Screen.height * 0.5f + 24f);
+                else if (marina != null)
+                    DrawLabel(marina.Prompt, Screen.height * 0.5f + 24f);
+                else if (lera != null)
+                    DrawLabel(lera.Prompt, Screen.height * 0.5f + 24f);
+                else if (keys != null)
+                    DrawLabel(keys.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }
@@ -103,6 +121,8 @@ namespace Motel
             }
             if (episode != null && episode.CarryingCane)
                 DrawLabel("Вы несёте трость · поговорите с Леонидом, чтобы передать её", Screen.height - 110f);
+            if (family != null && family.HasKeys)
+                DrawLabel("Ключи 7/8 у вас", Screen.height - 180f);
         }
 
         private void DrawLabel(string text, float y)
