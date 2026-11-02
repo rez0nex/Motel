@@ -21,13 +21,18 @@ namespace Motel
         public bool IsOpen { get; private set; }
         public string Speaker => speaker;
         public int ChoiceCount => choices.Length;
+        public UnityEngine.Object Participant { get; private set; }
 
         public void Configure(MotelLoopController controller) => loop = controller;
 
         public bool Show(string name, string text, params Choice[] options)
+            => ShowFor(null, name, text, options);
+
+        public bool ShowFor(UnityEngine.Object participant, string name, string text, params Choice[] options)
         {
             if (loop == null || loop.IsPaused || loop.Transitioning) return false;
             speaker = name;
+            Participant = participant;
             line = text;
             choices = options ?? Array.Empty<Choice>();
             IsOpen = true;
@@ -47,6 +52,7 @@ namespace Motel
         public void Close()
         {
             IsOpen = false;
+            Participant = null;
             choices = Array.Empty<Choice>();
             if (loop != null) loop.RefreshPlayerControl();
         }

@@ -15,6 +15,8 @@ namespace Motel
         private LeonidEvacuee leonid;
         private CanePickup cane;
         private LeonidEvacuee episode;
+        private VadimEvacuee vadim;
+        private EquipmentInspection inspection;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
 
@@ -30,6 +32,8 @@ namespace Motel
             cutoff = null;
             leonid = null;
             cane = null;
+            vadim = null;
+            inspection = null;
             if (player == null || viewCamera == null || !player.HasControl ||
                 loop != null && loop.SuppressInteractionUI)
                 return;
@@ -45,6 +49,8 @@ namespace Motel
                 cutoff = hit.collider.GetComponentInParent<EmergencyCutoff>();
                 leonid = hit.collider.GetComponentInParent<LeonidEvacuee>();
                 cane = hit.collider.GetComponentInParent<CanePickup>();
+                vadim = hit.collider.GetComponentInParent<VadimEvacuee>();
+                inspection = hit.collider.GetComponentInParent<EquipmentInspection>();
             }
 
             if (player.InteractionPressed)
@@ -52,6 +58,8 @@ namespace Motel
                 if (cutoff != null) cutoff.Interact();
                 else if (leonid != null) leonid.Interact();
                 else if (cane != null) cane.Interact();
+                else if (vadim != null) vadim.Interact();
+                else if (inspection != null) inspection.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -82,6 +90,10 @@ namespace Motel
                     DrawLabel(leonid.Prompt, Screen.height * 0.5f + 24f);
                 else if (cane != null)
                     DrawLabel(cane.Prompt, Screen.height * 0.5f + 24f);
+                else if (vadim != null)
+                    DrawLabel(vadim.Prompt, Screen.height * 0.5f + 24f);
+                else if (inspection != null)
+                    DrawLabel(inspection.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }

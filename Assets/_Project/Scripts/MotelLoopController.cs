@@ -28,15 +28,20 @@ namespace Motel
         private float flash, fade;
         private string lastClockText;
         private GUIStyle titleStyle, bodyStyle;
+        private Vector2 observationScroll;
 
         public double Elapsed => clock.Elapsed;
         public bool IsPaused => paused;
         public bool Transitioning => clock.AccidentRequested;
         public bool DebugCycle => sessionDebug ?? debugSixtySecondCycle;
         public bool DialogueOpen => dialogue != null && dialogue.IsOpen;
+        // Scene-owned evidence expires on reload; persistent knowledge below does not.
+        public bool EquipmentInspectedThisCycle { get; private set; }
         public bool SuppressInteractionUI => observationsOpen || Transitioning || DialogueOpen;
         public static bool KnowsCutoff => knowledge != null && knowledge.HasCutoffFact;
         public static bool KnowsLeonidRescue => knowledge != null && knowledge.HasLeonidFact;
+        public static bool KnowsEquipmentOverheat => knowledge != null && knowledge.HasEquipmentFact;
+        public static bool KnowsVadimRescue => knowledge != null && knowledge.HasVadimFact;
 
         public void ConfigureDialogue(DialogueController window) => dialogue = window;
 
@@ -52,6 +57,18 @@ namespace Motel
         public void RememberLeonidRescue()
         {
             if (!Transitioning) knowledge.RememberLeonidRescue();
+        }
+
+        public void RememberVadimRescue()
+        {
+            if (!Transitioning) knowledge.RememberVadimRescue();
+        }
+
+        public void RememberEquipmentOverheat()
+        {
+            if (Transitioning) return;
+            EquipmentInspectedThisCycle = true;
+            knowledge.RememberEquipmentOverheat();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -246,15 +263,21 @@ namespace Motel
             if ((Transitioning || DialogueOpen) && paused)
                 GUI.Label(new Rect(12, Screen.height / 2f, Screen.width - 24, 50), "Пауза · щёлкните, чтобы продолжить", titleStyle);
             if (!observationsOpen) return;
-            float width = Mathf.Min(660, Screen.width - 24), height = Mathf.Min(310, Screen.height - 70);
+            float width = Mathf.Min(660, Screen.width - 24), height = Mathf.Min(450, Screen.height - 50);
             Rect panel = new Rect((Screen.width - width) / 2, (Screen.height - height) / 2, width, height);
             GUI.Box(panel, GUIContent.none);
             GUI.Label(new Rect(panel.x + 16, panel.y + 14, width - 32, 40), "Наблюдения", titleStyle);
-            string facts = knowledge.HasCutoffFact ? "• " + ObservationStore.CutoffFact : "";
-            if (knowledge.HasLeonidFact) facts += (facts.Length > 0 ? "\n" : "") + "• " + ObservationStore.LeonidFact;
-            GUI.Label(new Rect(panel.x + 24, panel.y + 70, width - 48, 90), facts.Length > 0 ? facts : "Пока нет наблюдений.", bodyStyle);
+            string[] known = knowledge.Facts;
+            string facts = known.Length > 0 ? "• " + string.Join("\n\n• ", known) : "Пока нет наблюдений.";
+            bool warning = !string.IsNullOrEmpty(knowledge.Warning);
+            Rect viewport = new Rect(panel.x + 24, panel.y + 66, width - 48, Mathf.Max(25, height - (warning ? 205 : 135)));
+            float textWidth = viewport.width - 20;
+            float textHeight = Mathf.Max(viewport.height, bodyStyle.CalcHeight(new GUIContent(facts), textWidth));
+            observationScroll = GUI.BeginScrollView(viewport, observationScroll, new Rect(0, 0, textWidth, textHeight));
+            GUI.Label(new Rect(0, 0, textWidth, textHeight), facts, bodyStyle);
+            GUI.EndScrollView();
             if (!string.IsNullOrEmpty(knowledge.Warning))
-                GUI.Label(new Rect(panel.x + 24, panel.y + 160, width - 48, 65), knowledge.Warning, bodyStyle);
+                GUI.Label(new Rect(panel.x + 24, panel.yMax - 130, width - 48, 65), knowledge.Warning, bodyStyle);
             if (GUI.Button(new Rect(panel.x + width / 2 - 100, panel.yMax - 55, 200, 38), "Закрыть · J"))
             {
                 observationsOpen = false;

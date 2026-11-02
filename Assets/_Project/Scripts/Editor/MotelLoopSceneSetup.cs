@@ -51,7 +51,7 @@ namespace Motel.Editor
             loop.Configure(player, display, indicator, equipment, damage.gameObject, lights);
         }
 
-        private static TextMesh Text(Transform parent, string name, string content, float width, float height, Color color)
+        internal static TextMesh Text(Transform parent, string name, string content, float width, float height, Color color)
         {
             Transform node = Child(parent, name);
             TextMesh text = node.gameObject.AddComponent<TextMesh>();

@@ -98,11 +98,11 @@ namespace Motel.Editor
                     nextReport = now + 2;
                     File.AppendAllText("Logs/Leonid-PlayChecks-progress.txt", "phase=" + phase + ", clock=" + loop.Elapsed +
                         ", point=" + npc.Waypoint + ", position=" + npc.transform.position + ", waiting=" + npc.WaitingForPath +
-                        ", blocker=" + typeof(LeonidEvacuee).GetField("lastBlocker", Private).GetValue(npc) + "\n");
+                        ", blocker=" + npc.BlockingObject + "\n");
                 }
                 if (now - since > 85) throw new Exception("Timed out at phase " + phase + ": " + npc.CurrentStage +
                     ", waypoint=" + npc.Waypoint + ", waiting=" + npc.WaitingForPath + ", position=" + npc.transform.position +
-                    ", blocker=" + typeof(LeonidEvacuee).GetField("lastBlocker", Private).GetValue(npc) +
+                    ", blocker=" + npc.BlockingObject +
                     ", elapsed=" + loop.Elapsed + ", frame=" + Time.frameCount + ", paused=" + loop.IsPaused + ", dialogue=" + window.IsOpen);
 
                 switch (phase)
