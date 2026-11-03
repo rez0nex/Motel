@@ -42,7 +42,37 @@ namespace Motel.Editor
                 Require(Vector3.Distance(route.GetArrayElementAtIndex(i).vector3Value, expected[i]) < 0.001f, "Route differs from generator");
             Require(Vector3.Distance(leonid.transform.position, new Vector3(room.X(3), 0.05f, room.Z(4))) < 0.001f,
                 "Leonid spawn differs");
-            Require(!leonid.GetComponent<CharacterController>().enabled && cane.gameObject.activeSelf, "Saved initial state");
+            Require(!leonid.GetComponent<CharacterController>().enabled && !cane.gameObject.activeSelf, "Saved initial state");
+            var supplies = nodes.Select(t => t.GetComponent<LeonidBelongings>()).Where(c => c != null).Single();
+            var items = nodes.Select(t => t.GetComponent<LeonidWorldItem>()).Where(c => c != null).ToArray();
+            Require(items.Length == 3 && items.Select(i => i.Kind).Distinct().Count() == 3, "Belongings item duplicates");
+            Require(items.Single(i => i.Kind == LeonidWorldItem.ItemKind.BrokenCane).GetComponent<CanePickup>() == null, "Broken cane is usable");
+            Require(Vector3.Distance(items.Single(i => i.Kind == LeonidWorldItem.ItemKind.CarKeys).transform.position,
+                MotelLeonidCarSetup.KeyPosition(room)) < 0.001f, "Keys not on nightstand");
+            var sd = new SerializedObject(supplies);
+            foreach (string field in new[] { "loop", "dialogue", "leonid", "keys", "spareCane", "trunkLid" })
+                Require(sd.FindProperty(field).objectReferenceValue != null, "Missing belongings reference: " + field);
+            Require(new SerializedObject(cane).FindProperty("belongings").objectReferenceValue == supplies, "Spare supplies reference");
+            foreach (var item in items) Require(new SerializedObject(item).FindProperty("belongings").objectReferenceValue == supplies, "World item supplies reference");
+            Require(Vector3.Distance(nodes.Single(n => n.name == "Leonid Blue Car").position, MotelLeonidCarSetup.CarPosition) < 0.001f,
+                "Car position differs from generator");
+            Require(nodes.Single(n => n.name == "Blue Front").GetComponent<Renderer>().sharedMaterial.shader.name == "Universal Render Pipeline/Lit", "Car material not URP");
+            Physics.SyncTransforms();
+            Vector3 keyOrigin = MotelLeonidCarSetup.KeyApproach(room) + Vector3.up * 1.55f;
+            Vector3 keyTarget = items.Single(i => i.Kind == LeonidWorldItem.ItemKind.CarKeys).GetComponent<Collider>().bounds.center;
+            Require(Physics.Raycast(keyOrigin, (keyTarget - keyOrigin).normalized, out var keyHit, 2.5f, Physics.DefaultRaycastLayers) &&
+                keyHit.collider.GetComponent<LeonidWorldItem>()?.Kind == LeonidWorldItem.ItemKind.CarKeys, "Nightstand keys occluded");
+            var lid = (Transform)sd.FindProperty("trunkLid").objectReferenceValue;
+            Quaternion lidPose = lid.localRotation;
+            try
+            {
+                lid.localRotation = Quaternion.Euler(75, 0, 0); cane.gameObject.SetActive(true); Physics.SyncTransforms();
+                Vector3 from = new Vector3(MotelLeonidCarSetup.RearApproach.x, 1.5f, MotelLeonidCarSetup.RearApproach.z);
+                Vector3 delta = cane.GetComponent<Collider>().bounds.center - from;
+                Require(Physics.Raycast(from, delta.normalized, out var spareHit, 2.5f, Physics.DefaultRaycastLayers) &&
+                    spareHit.collider.GetComponent<CanePickup>() == cane, "Open trunk spare occluded");
+            }
+            finally { lid.localRotation = lidPose; cane.gameObject.SetActive(false); Physics.SyncTransforms(); }
             Require(cane.GetComponent<BoxCollider>() != null && !cane.GetComponent<BoxCollider>().isTrigger, "Cane ray target");
             Transform safe = (Transform)data.FindProperty("safePoint").objectReferenceValue;
             Require(Vector3.Distance(safe.position, expected.Last()) < 0.001f, "Safe point outside assembly marker");

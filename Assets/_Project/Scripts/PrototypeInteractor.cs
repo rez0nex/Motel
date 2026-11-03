@@ -21,6 +21,8 @@ namespace Motel
         private LeraEvacuee lera;
         private RoomKeysPickup keys;
         private GuestRegister register;
+        private LeonidWorldItem leonidItem;
+        private LeonidBelongings belongings;
         private FamilyEpisode family;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
@@ -30,6 +32,7 @@ namespace Motel
             loop = FindAnyObjectByType<MotelLoopController>();
             episode = FindAnyObjectByType<LeonidEvacuee>();
             family = FindAnyObjectByType<FamilyEpisode>();
+            belongings = FindAnyObjectByType<LeonidBelongings>();
         }
 
         private void Update()
@@ -42,6 +45,7 @@ namespace Motel
             inspection = null;
             marina = null; lera = null; keys = null;
             register = null;
+            leonidItem = null;
             if (player == null || viewCamera == null || !player.HasControl ||
                 loop != null && loop.SuppressInteractionUI)
                 return;
@@ -63,6 +67,7 @@ namespace Motel
                 lera = hit.collider.GetComponentInParent<LeraEvacuee>();
                 keys = hit.collider.GetComponentInParent<RoomKeysPickup>();
                 register = hit.collider.GetComponentInParent<GuestRegister>();
+                leonidItem = hit.collider.GetComponentInParent<LeonidWorldItem>();
             }
 
             if (player.InteractionPressed)
@@ -76,6 +81,7 @@ namespace Motel
                 else if (lera != null) lera.Interact();
                 else if (keys != null) keys.Interact();
                 else if (register != null) register.Interact();
+                else if (leonidItem != null) leonidItem.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -118,6 +124,8 @@ namespace Motel
                     DrawLabel(keys.Prompt, Screen.height * 0.5f + 24f);
                 else if (register != null)
                     DrawLabel(register.Prompt, Screen.height * 0.5f + 24f);
+                else if (leonidItem != null)
+                    DrawLabel(leonidItem.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }
@@ -129,6 +137,8 @@ namespace Motel
                 DrawLabel("Вы несёте трость · поговорите с Леонидом, чтобы передать её", Screen.height - 110f);
             if (family != null && family.HasKeys)
                 DrawLabel("Ключи 7/8 у вас", Screen.height - 180f);
+            if (belongings != null && belongings.HasCarKeys)
+                DrawLabel("Ключи от синей машины у вас", Screen.height - 250f);
         }
 
         private void DrawLabel(string text, float y)
