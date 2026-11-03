@@ -24,6 +24,8 @@ namespace Motel
         private LeonidWorldItem leonidItem;
         private LeonidBelongings belongings;
         private FamilyEpisode family;
+        private SlidingWardrobe wardrobe;
+        private MotelFloorPlan floorPlan;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
 
@@ -46,6 +48,7 @@ namespace Motel
             marina = null; lera = null; keys = null;
             register = null;
             leonidItem = null;
+            wardrobe = null; floorPlan = null;
             if (player == null || viewCamera == null || !player.HasControl ||
                 loop != null && loop.SuppressInteractionUI)
                 return;
@@ -68,6 +71,8 @@ namespace Motel
                 keys = hit.collider.GetComponentInParent<RoomKeysPickup>();
                 register = hit.collider.GetComponentInParent<GuestRegister>();
                 leonidItem = hit.collider.GetComponentInParent<LeonidWorldItem>();
+                wardrobe = hit.collider.GetComponentInParent<SlidingWardrobe>();
+                floorPlan = hit.collider.GetComponentInParent<MotelFloorPlan>();
             }
 
             if (player.InteractionPressed)
@@ -82,6 +87,8 @@ namespace Motel
                 else if (keys != null) keys.Interact();
                 else if (register != null) register.Interact();
                 else if (leonidItem != null) leonidItem.Interact();
+                else if (wardrobe != null) wardrobe.Interact();
+                else if (floorPlan != null) floorPlan.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -126,6 +133,10 @@ namespace Motel
                     DrawLabel(register.Prompt, Screen.height * 0.5f + 24f);
                 else if (leonidItem != null)
                     DrawLabel(leonidItem.Prompt, Screen.height * 0.5f + 24f);
+                else if (wardrobe != null)
+                    DrawLabel(wardrobe.Prompt, Screen.height * 0.5f + 24f);
+                else if (floorPlan != null)
+                    DrawLabel(floorPlan.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }

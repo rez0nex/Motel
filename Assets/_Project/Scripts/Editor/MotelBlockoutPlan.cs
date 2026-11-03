@@ -101,8 +101,9 @@ namespace Motel.Editor
                 {
                     var seven = Rooms.Single(r => r.Number == 7);
                     float connectionZ = seven.Z(MotelGuestRoomModule.ConnectionDepth);
-                    WallWithOpenings("Divider 7-8", -OuterZ, -1.2f, left, true, new Opening(connectionZ, 1.1f));
-                    DoorAt("Connection 7-8", "Room7.Living", "Room8.Living", left, connectionZ, 90, true, "7 ↔ 8", 1.1f);
+                    WallWithOpenings("Divider 7-8", -OuterZ, -1.2f, left, true, new Opening(connectionZ, 1.2f));
+                    // Park the leaf north of the passage, inside 7; the old swing cut Lera's first step in 8.
+                    DoorAt("Connection 7-8", "Room7.Living", "Room8.Living", left, connectionZ, 90, true, "7 ↔ 8", 1.2f, 95);
                 }
                 else WallZ("South Divider " + i, left, -OuterZ, -1.2f);
             }

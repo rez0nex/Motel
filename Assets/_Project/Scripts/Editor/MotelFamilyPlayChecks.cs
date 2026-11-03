@@ -48,8 +48,10 @@ namespace Motel.Editor
         [MenuItem("Motel/Run Automated Four Guest Checks")]
         public static void Begin() => BeginAt(0);
 
-        public static void BeginAt(int startingCycle, bool waitForOrdinaryTimer = true)
+        public static void BeginAt(int startingCycle, bool waitForOrdinaryTimer = true, int endingCycle = 2)
         {
+            SessionState.SetBool(Prefix + "ReverseConnection", false);
+            SessionState.SetInt(Prefix + "LastCycle", endingCycle);
             var scene = SceneManager.GetActiveScene();
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || scene.isDirty ||
                 scene.path != MotelBlockoutSceneCreator.ScenePath) throw new InvalidOperationException("Open saved MotelBlockout outside Play Mode.");
@@ -66,6 +68,13 @@ namespace Motel.Editor
             File.WriteAllText("Logs/Family-PlayChecks.txt", "RUNNING: waiting for EnteredPlayMode.");
             File.WriteAllText("Logs/Family-PlayChecks-progress.txt", "Player walks at 3 m/s; Marina 1.5, Lera/Vadim 1.7, Leonid 1.2; normal 360s clock. Handler-driven dialogue has no human reading time.\n");
             EditorApplication.isPaused = false; EditorApplication.isPlaying = true;
+        }
+
+        // Isolated collision fixture, not a player route timing: starts Lera in 7 to test the opposite direction.
+        public static void BeginReverseConnection()
+        {
+            BeginAt(2, false);
+            SessionState.SetBool(Prefix + "ReverseConnection", true);
         }
 
         private static void Tick()
@@ -94,12 +103,14 @@ namespace Motel.Editor
                     if (cycle == 0 && waitTimed) Require(oldLoop.Elapsed >= 360 && oldLoop.Transitioning, "Four rescues cancelled the ordinary timed accident");
                     File.AppendAllText("Logs/Family-PlayChecks-progress.txt", "RESET VERIFIED after cycle=" + cycle + " previousElapsed=" + oldLoop.Elapsed.ToString("F2") + "\n");
                     CheckReset(); reloading = false; cycle++;
-                    if (cycle == 3)
+                    if (cycle > SessionState.GetInt(Prefix + "LastCycle", 2))
                     {
                         Require(UserHash() == SessionState.GetString(Prefix + "UserHash", ""), "User save changed");
                         Finish(firstCycle == 2
-                            ? "PASS: isolated cycle 2 only; connection-door clearance, inside release, distance wait/rejoin and reset during following; seven facts and user save unchanged. Full rescue routes were not rerun."
-                            : "PASS: cycles " + firstCycle + "..2 (times/scenarios in progress log); physical four-guest route within 360s; player walked 3m/s with follower pacing, unchanged NPC speeds; keys, mother whereabouts, same-cycle parking talks, distance wait/rejoin, repeat talks and reset during following; cycle states/keys/doors reset, seven independent persistent facts without copies, no ending. User save unchanged. Handler-driven input, manual acceptance still required.");
+                            ? SessionState.GetBool(Prefix + "ReverseConnection", false)
+                                ? "PASS: isolated reverse fixture: Lera placed in 7 before following, physically crosses fully open connection 7→8, leaves by main door, arrives safe; cabinet/doors/family reset and user save unchanged. Not a route timing or initial gameplay position."
+                                : "PASS: isolated cycle 2 only; cabinet waits for player then slides; player crosses open connection both ways before following; Lera crosses 8→7 and is rescued without keys; distance wait/rejoin, reset restores cabinet/doors; seven facts and user save unchanged. Full four-guest routes were not rerun."
+                            : "PASS: cycles " + firstCycle + ".." + (cycle - 1) + " (times/scenarios in progress log); physical four-guest routes within 360s; player walked 3m/s with follower pacing, unchanged NPC speeds; both key sources, mother whereabouts, same-cycle parking talks and repeat talks; cycle states/keys/doors/cabinet reset, seven independent persistent facts without copies, no ending. User save unchanged. Handler-driven input, manual acceptance still required.");
                         return;
                     }
                     Resume(); BuildRoute();
@@ -141,10 +152,16 @@ namespace Motel.Editor
             });
             if (cycle == 0)
             {
+                Act("optional reception plan", () =>
+                {
+                    var map = Object.FindAnyObjectByType<MotelFloorPlan>(); Near(map); map.Interact();
+                    Require(window.IsOpen && Line().Contains("соединительная дверь") && !family.HasKeys &&
+                        !Object.FindAnyObjectByType<SlidingWardrobe>().IsMoved, "Plan changed access state"); window.Close();
+                });
                 Act("desk duplicate", () => { var keys = Object.FindAnyObjectByType<RoomKeysPickup>(); Near(keys); keys.Interact(); Require(family.HasKeys, "Desk keys"); });
                 Diagnose(); FetchSpareCane(); Enter(8);
                 Act("Lera before Marina", () => { Require(family.MotherLocation.Contains("в номере 7"), "Mother prematurely outside"); StartLera(); });
-                ConnectionFromEight(); Exit(7); LeadMain(true);
+                Exit(8); LeadMain(true);
                 Wait("Lera rescued first", () => family.Lera.CurrentStage == LeraEvacuee.Stage.Safe);
                 Act("Lera saved without Marina", () =>
                 {
@@ -179,23 +196,65 @@ namespace Motel.Editor
                 // No key or conversation is required to enter 8 through 7.
                 Walk(1.55f, -11.4f); Walk(4.8f, -11.4f); Walk(4.8f, 0); Enter(7);
                 var r7 = Room(7); var r8 = Room(8);
-                Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(r7.X(2.5f), r7.Z(4.25f)); Walk(r7.X(4), r7.Z(4.25f));
-                Open("Connection 7-8"); Walk(r8.X(0.5f), r8.Z(4.25f)); Walk(r8.X(0.5f), r8.Z(4.82f));
-                Walk(r8.X(2.09f), r8.Z(4.82f)); Walk(r8.X(2.09f), r8.Z(3.25f)); Walk(r8.X(1.15f), r8.Z(3.25f));
-                // The open connecting leaf cuts across Lera's first step. Clear it before testing distance, not obstacle waiting.
-                Close("Connection 7-8");
+                Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(21.08f, -4.30f);
+                Act("occupied cabinet landing", () =>
+                {
+                    Door("Connection 7-8").Toggle(); Require(!Door("Connection 7-8").IsOpenRequested, "Cabinet bypassed");
+                    var cabinet = Object.FindAnyObjectByType<SlidingWardrobe>(); Near(cabinet); cabinet.Interact();
+                });
+                Wait("cabinet waits instead of pushing player", () => Object.FindAnyObjectByType<SlidingWardrobe>().WaitingForClearance);
+                Walk(r7.X(2.5f), r7.Z(3.25f));
+                Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(r7.X(3.4f), r7.Z(4.25f));
+                Act("repeated cabinet interaction", () =>
+                {
+                    var cabinet = Object.FindAnyObjectByType<SlidingWardrobe>(); Near(cabinet); cabinet.Interact(); cabinet.Interact();
+                });
+                Wait("cabinet reaches prepared position", () =>
+                {
+                    var cabinet = Object.FindAnyObjectByType<SlidingWardrobe>();
+                    if (loop.Elapsed - stepStart > 6) throw new Exception("Cabinet stuck at " + cabinet.transform.position + ": " + cabinet.BlockingObject);
+                    return cabinet.IsMoved;
+                });
+                if (SessionState.GetBool(Prefix + "ReverseConnection", false))
+                {
+                    Open("Connection 7-8");
+                    Act("reverse-only test fixture in 7", () =>
+                    {
+                        var body = family.Lera.GetComponent<CharacterController>(); body.enabled = false;
+                        body.transform.position = new Vector3(r7.X(2.5f), 0.05f, r7.Z(4.1f)); body.enabled = true;
+                        Physics.SyncTransforms(); StartLera();
+                    });
+                    Walk(r8.X(0.5f), r8.Z(4.25f)); Walk(r8.X(1.15f), r8.Z(3.25f));
+                    Wait("Lera crosses 7 to 8", () => family.Lera.transform.position.x > 21.6f);
+                    Exit(8); LeadMain(false);
+                    Wait("reverse fixture physically safe", () => family.Lera.CurrentStage == LeraEvacuee.Stage.Safe);
+                    Act("reverse fixture reset", BeginReload);
+                    return;
+                }
+                Open("Connection 7-8"); Walk(r8.X(0.5f), r8.Z(4.25f));
+                Walk(r7.X(3.4f), r7.Z(4.25f)); Walk(r8.X(0.5f), r8.Z(4.25f));
+                Walk(r8.X(1.15f), r8.Z(3.25f));
                 Act("inside opens without keys", () => { Require(!family.HasKeys && Door("Room8").GetComponent<RoomEightLock>().CanOpen, "Inside release"); StartLera(); });
-                Walk(r8.X(1.15f), r8.Z(1.7f)); Walk(r8.X(0.8f), r8.Z(1.7f)); Open("Room8"); Walk(r8.X(0.8f), 0);
+                // Follow through the fully OPEN connecting door without closing it behind us.
+                Walk(r8.X(0.5f), r8.Z(4.25f)); Walk(r7.X(3.4f), r7.Z(4.25f));
+                Wait("Lera crosses into 7", () => family.Lera.transform.position.x < 21.1f);
+                Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(r7.X(1.15f), r7.Z(3.25f));
+                Wait("Lera clears open leaf into 7", () => family.Lera.transform.position.x < 19.8f);
+                Act("connection stayed open", () => Require(Door("Connection 7-8").IsFullyOpen, "Door had to close"));
+                Exit(7);
                 Act("allow distance test", () => pace = false); Walk(4.8f, 0);
                 Wait("Lera waits for distant player", () => family.Lera.WaitingForPlayer);
                 steps.Add(new Step { Name = "return close to Lera", Tick = () =>
                 {
                     Vector3 delta = family.Lera.transform.position - player.transform.position; delta.y = 0;
-                    if (delta.magnitude <= 3.5f) return true;
+                    // Reconnect the trail within its existing 2.5 m clear-segment radius.
+                    if (delta.magnitude <= 2f) { pace = true; return true; }
                     player.Move(delta.normalized * Mathf.Min(3 * Time.deltaTime, delta.magnitude)); return false;
                 }});
                 Wait("Lera rejoins", () => !family.Lera.WaitingForPlayer);
-                Act("reset during following", () => { Require(family.Lera.CurrentStage == LeraEvacuee.Stage.Following, "Lera stopped following"); BeginReload(); });
+                LeadMain(false);
+                Wait("Lera rescued through 7 without keys", () => family.Lera.CurrentStage == LeraEvacuee.Stage.Safe);
+                Act("reset moved wardrobe and rescue", BeginReload);
                 return;
             }
             Wait("four physically safe", AllSafe);
@@ -305,14 +364,6 @@ namespace Motel.Editor
         {
             var r = Room(number); Walk(r.X(1.15f), r.Z(1.7f)); Walk(r.X(0.8f), r.Z(1.7f)); Open("Room" + number); Walk(r.X(0.8f), 0);
         }
-        private static void ConnectionFromEight()
-        {
-            var r8 = Room(8); var r7 = Room(7);
-            // Walk around Lera and the open leaf rather than asking the player to walk through her.
-            Walk(r8.X(2.09f), r8.Z(3.25f)); Open("Connection 7-8");
-            Walk(r8.X(2.09f), r8.Z(4.82f)); Walk(r8.X(0.5f), r8.Z(4.82f)); Walk(r8.X(0.5f), r8.Z(4.25f));
-            Walk(r7.X(3), r7.Z(4.25f)); Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(r7.X(1.15f), r7.Z(3.25f));
-        }
         private static void LeadMain(bool testDoor)
         {
             Walk(4.8f, 0); Walk(4.8f, -11.8f); Walk(4.8f, -13.6f); Open("Main Entrance"); Walk(8, -13.6f);
@@ -360,6 +411,9 @@ namespace Motel.Editor
         }
         private static void CheckReset()
         {
+            var cabinet = Object.FindAnyObjectByType<SlidingWardrobe>();
+            Require(cabinet != null && !cabinet.IsMoved && Vector3.Distance(cabinet.transform.position,
+                MotelConnectionSceneSetup.WardrobeStart) < 0.001f, "Wardrobe not restored");
             Require(!family.HasKeys && !loop.EquipmentInspectedThisCycle && !window.IsOpen &&
                 family.Marina.CurrentStage == MarinaEvacuee.Stage.InRoom && family.Lera.CurrentStage == LeraEvacuee.Stage.InRoom &&
                 Object.FindAnyObjectByType<LeonidEvacuee>().CurrentStage == LeonidEvacuee.Stage.Sleeping &&
