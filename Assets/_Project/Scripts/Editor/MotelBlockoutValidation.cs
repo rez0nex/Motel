@@ -26,7 +26,8 @@ namespace Motel.Editor
                     "Window aperture is filled by a wall");
             }
             foreach (var b in p.Boxes) Require(b.Width > 0 && b.Height > 0 && b.Depth > 0, "Invalid box " + b.Name);
-            foreach (var d in p.Doors) Require(d.Width >= 1 && Math.Abs(d.OpenAngle) == 95, "Door size or angle " + d.Name);
+            foreach (var d in p.Doors) Require(d.Width >= 1 &&
+                (d.Name == "Connection 7-8" ? d.OpenAngle == 95 : Math.Abs(d.OpenAngle) == 95), "Door size or angle " + d.Name);
             foreach (var r in p.Rooms)
             {
                 Require(r.Accessible == new[] {2,4,7,8}.Contains(r.Number), "Accessible rooms changed");

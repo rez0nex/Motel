@@ -44,12 +44,7 @@ namespace Motel.Editor
             lock8.Configure(family, new Bounds(new Vector3(eight.X(2.5f), 1.4f, eight.Z(3.25f)), new Vector3(5, 3, 6.5f)));
 
             Transform belongings = Child(group, "Room7 Shared Stay");
-            var cot = MotelGuestVisuals.Part(belongings, "Broken Folded Cot", PrimitiveType.Cube,
-                new Vector3(seven.X(3.6f), 0.35f, seven.Z(2.9f)), new Vector3(1.3f, 0.7f, 0.28f), "Furniture");
-            cot.gameObject.AddComponent<BoxCollider>();
-            Transform sign = Child(belongings, "Broken Cot Label");
-            sign.position = new Vector3(seven.X(3.6f), 0.82f, seven.Z(3.1f));
-            MotelLoopSceneSetup.Text(sign, "Text", "Неисправно", 0.55f, 0.09f, Color.white);
+            MotelConnectionSceneSetup.Create(root, belongings, seven, loop, window);
             for (int i = 0; i < 2; i++)
             {
                 MotelGuestVisuals.Part(belongings, "Mug " + i, PrimitiveType.Cylinder,

@@ -138,6 +138,7 @@ namespace Motel.Editor
                 MotelLeonidChecks.ValidateScene(scene);
                 MotelVadimChecks.ValidateScene(scene);
                 MotelFamilyChecks.ValidateScene(scene);
+                MotelConnectionChecks.ValidateScene(scene);
                 if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Could not save " + ScenePath);
                 Debug.Log(report + "\nScene saved: " + ScenePath);
             }

@@ -14,8 +14,12 @@ namespace Motel
         private float currentAngle;
         private bool wantsOpen;
         private RoomEightLock access;
+        [SerializeField] private SlidingWardrobe obstruction;
 
-        public string Prompt => wantsOpen ? "E — закрыть" : access != null && !access.CanOpen
+        public void ConfigureObstruction(SlidingWardrobe wardrobe) => obstruction = wardrobe;
+
+        public string Prompt => wantsOpen ? "E — закрыть" : obstruction != null && !obstruction.IsMoved
+            ? "Сначала сдвиньте шкаф со стороны №7" : access != null && !access.CanOpen
             ? "E — заперто · нужны ключи № 8" : "E — открыть";
         // NPCs wait outside the swing until the existing door has finished opening.
         public bool IsFullyOpen => wantsOpen && Mathf.Abs(currentAngle - openAngle) < 0.5f;
@@ -34,6 +38,7 @@ namespace Motel
 
         public void Toggle()
         {
+            if (!wantsOpen && obstruction != null && !obstruction.IsMoved) return;
             if (!wantsOpen && access != null && !access.CanOpen) return;
             wantsOpen = !wantsOpen;
         }
