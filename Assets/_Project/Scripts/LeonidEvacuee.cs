@@ -92,11 +92,11 @@ namespace Motel
         private void AskForCane()
         {
             if (CarryingCane)
-                dialogue.ShowFor(this, "Леонид · номер 4", "Понял, надо выходить. Без трости мне тяжело. Вы её уже нашли?",
-                    new DialogueController.Choice("Вот ваша трость. Я открою путь к парковке.", GiveCane),
+                dialogue.ShowTopicFor(this, "Леонид", "Запасная трость", "Вы уже принесли запасную? Спасибо. С ней я смогу выйти.",
+                    new DialogueController.Choice("Возьмите запасную трость. Я открою путь к парковке.", GiveCane),
                     new DialogueController.Choice("Сейчас подготовлю проход.", dialogue.Close));
             else
-                dialogue.ShowFor(this, "Леонид · номер 4", "Выйду с вами, только подайте мою трость: она возле кровати.",
+                dialogue.ShowTopicFor(this, "Леонид", "Трость в машине", LeonidBelongings.Directions,
                     new DialogueController.Choice("Сейчас принесу.", dialogue.Close));
         }
 

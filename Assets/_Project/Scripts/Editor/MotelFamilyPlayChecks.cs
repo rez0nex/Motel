@@ -97,7 +97,9 @@ namespace Motel.Editor
                     if (cycle == 3)
                     {
                         Require(UserHash() == SessionState.GetString(Prefix + "UserHash", ""), "User save changed");
-                        Finish("PASS: cycles " + firstCycle + "..2 (times/scenarios in progress log); physical four-guest route within 360s; player walked 3m/s with follower pacing, unchanged NPC speeds; keys, mother whereabouts, same-cycle parking talks, distance wait/rejoin, repeat talks and reset during following; cycle states/keys/doors reset, seven independent persistent facts without copies, no ending. User save unchanged. Handler-driven input, manual acceptance still required.");
+                        Finish(firstCycle == 2
+                            ? "PASS: isolated cycle 2 only; connection-door clearance, inside release, distance wait/rejoin and reset during following; seven facts and user save unchanged. Full rescue routes were not rerun."
+                            : "PASS: cycles " + firstCycle + "..2 (times/scenarios in progress log); physical four-guest route within 360s; player walked 3m/s with follower pacing, unchanged NPC speeds; keys, mother whereabouts, same-cycle parking talks, distance wait/rejoin, repeat talks and reset during following; cycle states/keys/doors reset, seven independent persistent facts without copies, no ending. User save unchanged. Handler-driven input, manual acceptance still required.");
                         return;
                     }
                     Resume(); BuildRoute();
@@ -119,9 +121,9 @@ namespace Motel.Editor
                         " V=" + Object.FindAnyObjectByType<VadimEvacuee>().CurrentStage + "/" + Object.FindAnyObjectByType<VadimEvacuee>().BlockingObject +
                         " Leonid=" + Object.FindAnyObjectByType<LeonidEvacuee>().CurrentStage + "/" + Object.FindAnyObjectByType<LeonidEvacuee>().BlockingObject + "\n");
                 }
-                Require(loop.Elapsed - stepStart < 45, "Step timeout: " + steps[cursor].Name + "; player=" + player.transform.position +
+                if (loop.Elapsed - stepStart >= 45) throw new Exception("Step timeout: " + steps[cursor].Name + "; player=" + player.transform.position +
                     "; Marina=" + family.Marina.transform.position + "/" + family.Marina.BlockingObject +
-                    "; Lera=" + family.Lera.transform.position + "/" + family.Lera.BlockingObject);
+                    "; Lera=" + family.Lera.transform.position + "/" + family.Lera.BlockingObject + "; " + NearbySolids());
                 if (steps[cursor].Tick()) { cursor++; stepStart = loop.Elapsed; }
             }
             catch (Exception e) { Finish("FAIL: cycle=" + cycle + " step=" + cursor + " " + e); }
@@ -140,7 +142,7 @@ namespace Motel.Editor
             if (cycle == 0)
             {
                 Act("desk duplicate", () => { var keys = Object.FindAnyObjectByType<RoomKeysPickup>(); Near(keys); keys.Interact(); Require(family.HasKeys, "Desk keys"); });
-                Diagnose(); Enter(8);
+                Diagnose(); FetchSpareCane(); Enter(8);
                 Act("Lera before Marina", () => { Require(family.MotherLocation.Contains("в номере 7"), "Mother prematurely outside"); StartLera(); });
                 ConnectionFromEight(); Exit(7); LeadMain(true);
                 Wait("Lera rescued first", () => family.Lera.CurrentStage == LeraEvacuee.Stage.Safe);
@@ -157,7 +159,7 @@ namespace Motel.Editor
             }
             else if (cycle == 1)
             {
-                Diagnose(); Walk(4.8f, -13.6f); Open("Main Entrance"); Walk(4.8f, 0);
+                Diagnose(); FetchSpareCane(); Walk(4.8f, -13.6f); Open("Main Entrance"); Walk(4.8f, 0);
                 Enter(7); StartMarina(true); Exit(7);
                 RescueVadim(); Walk(24.5f, 0.65f); Open("Emergency Exit"); RescueLeonid();
                 Walk(25.4f, 0); Walk(29.2f, 0); Walk(29.2f, -12); Walk(25, -16.8f); Walk(19, -16.5f);
@@ -180,6 +182,8 @@ namespace Motel.Editor
                 Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(r7.X(2.5f), r7.Z(4.25f)); Walk(r7.X(4), r7.Z(4.25f));
                 Open("Connection 7-8"); Walk(r8.X(0.5f), r8.Z(4.25f)); Walk(r8.X(0.5f), r8.Z(4.82f));
                 Walk(r8.X(2.09f), r8.Z(4.82f)); Walk(r8.X(2.09f), r8.Z(3.25f)); Walk(r8.X(1.15f), r8.Z(3.25f));
+                // The open connecting leaf cuts across Lera's first step. Clear it before testing distance, not obstacle waiting.
+                Close("Connection 7-8");
                 Act("inside opens without keys", () => { Require(!family.HasKeys && Door("Room8").GetComponent<RoomEightLock>().CanOpen, "Inside release"); StartLera(); });
                 Walk(r8.X(1.15f), r8.Z(1.7f)); Walk(r8.X(0.8f), r8.Z(1.7f)); Open("Room8"); Walk(r8.X(0.8f), 0);
                 Act("allow distance test", () => pace = false); Walk(4.8f, 0);
@@ -262,11 +266,35 @@ namespace Motel.Editor
             Enter(4); var r = Room(4); Walk(r.X(1.75f), r.Z(4.9f));
             Act("Leonid and cane", () =>
             {
-                var cane = Object.FindAnyObjectByType<CanePickup>(); Near(cane); cane.Interact();
                 var actor = Object.FindAnyObjectByType<LeonidEvacuee>(); Near(actor); actor.Interact(); window.Choose(0); window.Choose(0);
                 Require(actor.CurrentStage == LeonidEvacuee.Stage.Evacuating, "Leonid regression");
             });
             Walk(r.X(1.15f), r.Z(3.25f)); Exit(4);
+        }
+        private static void FetchSpareCane()
+        {
+            // Physical detour before any rescue; it does not require a conversation with Leonid.
+            var room = Room(4); Enter(4);
+            Walk(room.X(4.55f), room.Z(3.25f)); Walk(room.X(4.55f), room.Z(4.1f));
+            Act("car keys before conversation", () =>
+            {
+                var keys = Object.FindObjectsByType<LeonidWorldItem>().Single(i => i.Kind == LeonidWorldItem.ItemKind.CarKeys);
+                Near(keys); keys.Interact(); Require(Object.FindAnyObjectByType<LeonidBelongings>().HasCarKeys, "Car keys missing");
+            });
+            Walk(room.X(4.55f), room.Z(3.25f)); Walk(room.X(1.15f), room.Z(3.25f)); Exit(4);
+            Walk(25.4f, 0); Open("Emergency Exit"); Walk(28.34f, 0); Walk(28.34f, -12); Walk(25, -16.8f); Walk(22.5f, -16.8f);
+            Act("open blue car trunk", () =>
+            {
+                var trunk = Object.FindObjectsByType<LeonidWorldItem>().Single(i => i.Kind == LeonidWorldItem.ItemKind.Trunk);
+                Near(trunk); trunk.Interact();
+            });
+            Wait("trunk fully open", () => Object.FindAnyObjectByType<LeonidBelongings>().CanTakeSpare);
+            Act("spare before Leonid", () =>
+            {
+                var cane = Object.FindAnyObjectByType<CanePickup>(); Near(cane); cane.Interact();
+                Require(Object.FindAnyObjectByType<LeonidEvacuee>().CarryingCane, "Early spare pickup failed");
+            });
+            Walk(25, -16.8f); Walk(28.34f, -12); Walk(28.34f, 0); Walk(25.4f, 0); Walk(4.8f, 0);
         }
         private static void Enter(int number)
         {
@@ -345,6 +373,9 @@ namespace Motel.Editor
             Require(Vector3.Distance(family.Marina.transform.position, new Vector3(r7.X(1.8f), 0.05f, r7.Z(4))) < 0.15f &&
                 Vector3.Distance(family.Lera.transform.position, new Vector3(r8.X(1.4f), 0.05f, r8.Z(4))) < 0.15f, "Family positions not restored");
             var store = Store(); Require(!store.RememberMarinaRescue() && !store.RememberLeraRescue() && !store.RememberFamilyPlacement(), "Duplicate knowledge");
+            var supplies = Object.FindAnyObjectByType<LeonidBelongings>();
+            Require(!supplies.HasCarKeys && !supplies.IsTrunkOpen && !supplies.SpareTaken && !Object.FindAnyObjectByType<LeonidEvacuee>().CarryingCane,
+                "Car belongings not reset");
         }
         private static void Near(Component actor)
         {
@@ -362,6 +393,18 @@ namespace Motel.Editor
         private static ObservationStore Store() => new ObservationStore(SessionState.GetString(Prefix + "Save", ""));
         private static void Resume() => typeof(MotelLoopController).GetMethod("SetPaused", Private).Invoke(loop, new object[] { false });
         private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
+        private static string NearbySolids()
+        {
+            var center = player.transform.position + player.center;
+            var hits = Physics.OverlapCapsule(center - Vector3.up * 0.4f, center + Vector3.up * 0.4f, player.radius + 0.15f,
+                ~0, QueryTriggerInteraction.Ignore);
+            return string.Join(" | ", hits.Where(c => c != player).Select(c =>
+            {
+                var door = c.GetComponentInParent<PrototypeDoor>();
+                return c.name + " parent=" + c.transform.parent?.name + " at=" + c.bounds.center +
+                    (door == null ? "" : " door=" + door.name + " requested=" + door.IsOpenRequested + " open=" + door.IsFullyOpen + " rot=" + door.transform.eulerAngles);
+            }));
+        }
         private static string UserHash()
         {
             string path = Path.Combine(Application.persistentDataPath, "observations-v1.json");

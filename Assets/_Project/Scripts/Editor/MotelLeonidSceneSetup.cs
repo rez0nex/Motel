@@ -66,11 +66,7 @@ namespace Motel.Editor
                 target, Route(room), safe, root.Find("Doors/Room4").GetComponent<PrototypeDoor>(),
                 root.Find("Doors/Emergency Exit").GetComponent<PrototypeDoor>());
 
-            Transform pickup = Cane(group, "Leonid Cane", At(room.X(2.1f), room.Z(4.25f)));
-            var collider = pickup.gameObject.AddComponent<BoxCollider>();
-            collider.center = new Vector3(0.04f, 0.5f, 0);
-            collider.size = new Vector3(0.22f, 1.02f, 0.18f);
-            pickup.gameObject.AddComponent<CanePickup>().Configure(leonid);
+            MotelLeonidCarSetup.Create(group, leonid, loop, dialogue, room);
         }
 
         private static Transform Cane(Transform parent, string name, Vector3 position)
