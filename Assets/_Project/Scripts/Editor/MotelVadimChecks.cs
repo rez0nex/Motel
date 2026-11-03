@@ -45,7 +45,21 @@ namespace Motel.Editor
             Require(route.arraySize == expected.Length, "Vadim route point count");
             for (int i = 0; i < expected.Length; i++)
                 Require(Vector3.Distance(route.GetArrayElementAtIndex(i).vector3Value, expected[i]) < 0.001f, "Route differs from generator");
-            Require(Vector3.Distance(vadim.transform.position, new Vector3(room.X(3), 0.05f, room.Z(4))) < 0.001f, "Vadim spawn");
+            Require(Vector3.Distance(vadim.transform.position, MotelVadimSceneSetup.Spawn) < 0.001f, "Vadim arrival spawn");
+            foreach (var item in new[] {
+                ("arrivalRoute", MotelVadimSceneSetup.ArrivalRoute()),
+                ("checkInRoute", MotelVadimSceneSetup.CheckInRoute(room)) })
+            {
+                var saved = actorData.FindProperty(item.Item1);
+                Require(saved.arraySize == item.Item2.Length, item.Item1 + " length");
+                for (int i = 0; i < saved.arraySize; i++)
+                    Require(Vector3.Distance(saved.GetArrayElementAtIndex(i).vector3Value, item.Item2[i]) < 0.001f, item.Item1 + " point");
+            }
+            var register = nodes.Select(n => n.GetComponent<GuestRegister>()).Where(c => c != null).Single();
+            Require(actorData.FindProperty("register").objectReferenceValue == register &&
+                Mathf.Approximately(actorData.FindProperty("arrivalDelay").floatValue, 10), "Register/arrival defaults");
+            Require(new SerializedObject(register).FindProperty("dialogue").objectReferenceValue == dialogue &&
+                new SerializedObject(register).FindProperty("loop").objectReferenceValue == loop, "Register references");
             var cc = vadim.GetComponent<CharacterController>();
             Require(cc.enabled && Math.Abs(cc.radius - 0.28f) < 0.001f && Math.Abs(cc.height - 1.7f) < 0.001f, "Vadim body size");
             var entrance = (PrototypeDoor)actorData.FindProperty("entranceDoor").objectReferenceValue;
@@ -61,11 +75,20 @@ namespace Motel.Editor
                 foreach (var door in doors)
                     door.transform.localRotation *= Quaternion.Euler(0, new SerializedObject(door).FindProperty("openAngle").floatValue, 0);
                 Physics.SyncTransforms();
-                Vector3 previous = vadim.transform.position;
+                Vector3 previous = MotelVadimSceneSetup.RoomPosition(room);
                 foreach (Vector3 point in expected)
                 {
                     Require(!Blocked(previous, point, cc), "Vadim open route obstructed: " + previous + " -> " + point);
                     previous = point;
+                }
+                foreach (var trip in new[] { MotelVadimSceneSetup.ArrivalRoute(), MotelVadimSceneSetup.CheckInRoute(room) })
+                {
+                    previous = trip == null ? Vector3.zero : trip[0];
+                    foreach (Vector3 point in trip)
+                    {
+                        Require(!Blocked(previous, point, cc), "Arrival/check-in path obstructed: " + previous + " -> " + point);
+                        previous = point;
+                    }
                 }
             }
             finally

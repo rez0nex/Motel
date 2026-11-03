@@ -54,8 +54,9 @@ namespace Motel.Editor
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || scene.isDirty ||
                 scene.path != MotelBlockoutSceneCreator.ScenePath) throw new InvalidOperationException("Open saved MotelBlockout outside Play Mode.");
             string save = Path.GetFullPath("Temp/FamilyPlay-" + Guid.NewGuid().ToString("N") + ".json");
-            File.WriteAllText(save, startingCycle == 0 ? "{\"version\":1,\"cutoffCausedExplosion\":true}" :
-                "{\"version\":1,\"cutoffCausedExplosion\":true,\"leonidRescued\":true,\"equipmentOverheatInspected\":true,\"vadimRescued\":true,\"familyPlacementKnown\":true,\"marinaRescued\":true,\"leraRescued\":true}");
+            // Joint rescue fixture starts AFTER a previously experienced explosion; legacy facts alone do not grant it.
+            File.WriteAllText(save, startingCycle == 0 ? "{\"version\":1,\"cutoffCausedExplosion\":true,\"experiencedExplosion\":true}" :
+                "{\"version\":1,\"cutoffCausedExplosion\":true,\"leonidRescued\":true,\"equipmentOverheatInspected\":true,\"vadimRescued\":true,\"familyPlacementKnown\":true,\"marinaRescued\":true,\"leraRescued\":true,\"experiencedExplosion\":true}");
             SessionState.SetString(Prefix + "Save", save); SessionState.SetString(Prefix + "UserHash", UserHash());
             SessionState.SetBool(Prefix + "Background", Application.runInBackground);
             SessionState.SetBool(Prefix + "ProjectBackground", PlayerSettings.runInBackground);
@@ -237,7 +238,24 @@ namespace Motel.Editor
         }
         private static void RescueVadim()
         {
-            Enter(2); Act("convince Vadim", () => { var actor = Object.FindAnyObjectByType<VadimEvacuee>(); Near(actor); actor.Interact(); window.Choose(0); Require(actor.CurrentStage == VadimEvacuee.Stage.Evacuating, "Vadim regression"); }); Exit(2);
+            Walk(4.8f, 0); Walk(4.8f, -11.8f); Walk(4.8f, -12.7f);
+            Wait("Vadim arrives at reception", () => Object.FindAnyObjectByType<VadimEvacuee>().CurrentStage == VadimEvacuee.Stage.AtReception);
+            Act("check booking and issue room2 key", () =>
+            {
+                var actor = Object.FindAnyObjectByType<VadimEvacuee>(); Near(actor); actor.Interact();
+                window.Choose(0); window.Choose(0); window.Choose(0);
+                Require(actor.CheckedIn && actor.CurrentStage == VadimEvacuee.Stage.GoingToRoom, "Required check-in failed");
+            });
+            Walk(4.8f, -11.8f); Walk(4.8f, 0); Walk(14.3f, 0);
+            Wait("Vadim physically arrives in room2", () => Object.FindAnyObjectByType<VadimEvacuee>().RoomArrivalComplete);
+            Enter(2);
+            Act("convince checked-in Vadim and give exit", () =>
+            {
+                var actor = Object.FindAnyObjectByType<VadimEvacuee>(); Near(actor); actor.Interact(); window.Choose(0);
+                Require(actor.CurrentStage != VadimEvacuee.Stage.Evacuating && window.Speaker == "Вадим", "Route started before exit instructions");
+                window.Choose(0); Require(actor.CurrentStage == VadimEvacuee.Stage.Evacuating, "Room evacuation failed");
+            });
+            Exit(2);
         }
         private static void RescueLeonid()
         {
@@ -317,7 +335,8 @@ namespace Motel.Editor
             Require(!family.HasKeys && !loop.EquipmentInspectedThisCycle && !window.IsOpen &&
                 family.Marina.CurrentStage == MarinaEvacuee.Stage.InRoom && family.Lera.CurrentStage == LeraEvacuee.Stage.InRoom &&
                 Object.FindAnyObjectByType<LeonidEvacuee>().CurrentStage == LeonidEvacuee.Stage.Sleeping &&
-                Object.FindAnyObjectByType<VadimEvacuee>().CurrentStage == VadimEvacuee.Stage.Skeptical, "Cycle states not reset");
+                Object.FindAnyObjectByType<VadimEvacuee>().CurrentStage == VadimEvacuee.Stage.AwaitingArrival &&
+                Object.FindAnyObjectByType<GuestRegister>().EntryCount == 2, "Cycle states not reset");
             Require(!WantsOpen(Door("Room8")) && !WantsOpen(Door("Main Entrance")) && !WantsOpen(Door("Connection 7-8")), "Doors not restored");
             Require(Object.FindObjectsByType<MarinaEvacuee>().Length == 1 && Object.FindObjectsByType<LeraEvacuee>().Length == 1 &&
                 Object.FindObjectsByType<RoomKeysPickup>().Length == 1 && Object.FindObjectsByType<DialogueController>().Length == 1 &&

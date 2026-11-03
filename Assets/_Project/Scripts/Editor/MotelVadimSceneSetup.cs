@@ -6,6 +6,16 @@ namespace Motel.Editor
 {
     public static class MotelVadimSceneSetup
     {
+        public static Vector3 Spawn => At(10, -13.6f);
+        public static Vector3 Counter => At(4.05f, -13.6f);
+        public static Vector3 RoomPosition(MotelGuestRoomModule.Layout room) => At(room.X(3), room.Z(4));
+        public static Vector3[] ArrivalRoute() => new[] { At(8, -13.6f), At(4.8f, -13.6f), Counter };
+        public static Vector3[] CheckInRoute(MotelGuestRoomModule.Layout room) => new[]
+        {
+            Counter, At(4.8f, -13.6f), At(4.8f, -11.8f), At(4.8f, 0), At(room.X(0.8f), 0),
+            At(room.X(0.8f), room.Z(1.7f)), At(room.X(1.15f), room.Z(1.7f)),
+            At(room.X(1.15f), room.Z(2.9f)), At(room.X(1.25f), room.Z(4)), RoomPosition(room)
+        };
         public static Vector3[] Route(MotelGuestRoomModule.Layout room) => new[]
         {
             At(room.X(1.25f), room.Z(4)),
@@ -29,16 +39,29 @@ namespace Motel.Editor
             var dialogue = root.GetComponentInChildren<DialogueController>(true);
             if (loop == null || dialogue == null) throw new InvalidOperationException("Create loop and shared dialogue first.");
             Transform group = Child(root, "Vadim Episode");
+            Transform book = Child(group, "Guest Register");
+            book.position = new Vector3(2.7f, 1.1f, -12.95f);
+            var cover = MotelGuestVisuals.Part(book, "Register Book", PrimitiveType.Cube,
+                Vector3.zero, new Vector3(0.52f, 0.07f, 0.38f), "Equipment");
+            cover.gameObject.AddComponent<BoxCollider>();
+            var register = book.gameObject.AddComponent<GuestRegister>(); register.Configure(loop, dialogue);
+            Transform label = Child(book, "Register Label");
+            label.localPosition = new Vector3(0, 0.04f, 0); label.localRotation = Quaternion.Euler(90, 0, 0);
+            MotelLoopSceneSetup.Text(label, "Text", "Журнал", 0.44f, 0.12f, Color.white);
             Transform safe = Child(group, "Vadim Safe Point");
             safe.position = At(17, -18.1f);
+            Transform counter = Child(group, "Vadim Reception Point"); counter.position = Counter;
+            Transform roomPoint = Child(group, "Vadim Room Point"); roomPoint.position = RoomPosition(room);
             Transform npc = Child(group, "Vadim");
-            npc.position = At(room.X(3), room.Z(4));
-            npc.rotation = Quaternion.Euler(0, 180, 0);
+            npc.position = Spawn;
+            npc.rotation = Quaternion.Euler(0, -90, 0);
             var cc = npc.gameObject.AddComponent<CharacterController>();
             cc.height = 1.7f; cc.radius = 0.28f; cc.center = new Vector3(0, 0.86f, 0);
             cc.skinWidth = 0.025f; cc.stepOffset = 0.15f; cc.minMoveDistance = 0;
-            MotelGuestVisuals.Person(Child(npc, "Vadim Placeholder"), "Paint");
-            npc.gameObject.AddComponent<VadimEvacuee>().Configure(loop, dialogue, Route(room), safe,
+            Transform model = Child(npc, "Vadim Placeholder");
+            MotelGuestVisuals.Person(model, "Paint");
+            npc.gameObject.AddComponent<VadimEvacuee>().Configure(loop, dialogue, register,
+                Route(room), ArrivalRoute(), CheckInRoute(room), safe, counter, roomPoint, model.gameObject,
                 root.Find("Doors/Room2").GetComponent<PrototypeDoor>(), root.Find("Doors/Main Entrance").GetComponent<PrototypeDoor>());
 
             Transform panel = Child(group, "Equipment Diagnostics");

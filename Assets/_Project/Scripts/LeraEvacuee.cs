@@ -8,6 +8,8 @@ namespace Motel
     {
         public enum Stage { InRoom, Following, Safe }
         [SerializeField] private FamilyEpisode family;
+        [SerializeField] private int age = 14;
+        public int Age => age;
         [SerializeField] private Transform safePoint;
         [SerializeField, Min(0.1f)] private float speed = 1.7f;
         private readonly List<Vector3> trail = new List<Vector3>();
@@ -30,7 +32,7 @@ namespace Motel
         public string Prompt => "E — поговорить с Лерой";
         private DialogueController Window => family.Dialogue;
 
-        public void Configure(FamilyEpisode episode, Transform destination) { family = episode; safePoint = destination; }
+        public void Configure(FamilyEpisode episode, Transform destination) { family = episode; safePoint = destination; age = 14; }
         private void Awake()
         {
             CurrentStage = Stage.InRoom;
