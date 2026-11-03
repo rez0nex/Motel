@@ -59,16 +59,25 @@ namespace Motel.Editor
                 Require(saved == File.ReadAllText(path), "Duplicate fact rewrites save");
             }
             string future = Path.Combine(directory, "future.json");
+            string experience = Path.Combine(directory, "experience.json");
+            File.WriteAllText(experience, saved); // Legacy facts, without the new progress field.
+            store = new ObservationStore(experience);
+            Require(store.HasCutoffFact && !store.HasExperiencedExplosion, "Legacy observation grants explosion experience");
+            int factCount = store.Facts.Length;
+            Require(store.RememberExperiencedExplosion(), "Learn explosion experience");
+            store = new ObservationStore(experience);
+            Require(store.HasExperiencedExplosion && store.Facts.Length == factCount && !store.RememberExperiencedExplosion(), "Independent experience lost/duplicated");
             File.WriteAllText(future, "{\"version\":99}");
             store = new ObservationStore(future);
             store.RememberCutoff();
+            store.RememberExperiencedExplosion();
             Require(File.ReadAllText(future) == "{\"version\":99}" && store.Warning != null, "Future save overwritten");
             string corrupt = Path.Combine(directory, "corrupt.json");
             File.WriteAllText(corrupt, "not json");
             store = new ObservationStore(corrupt);
             store.RememberCutoff();
             Require(File.ReadAllText(corrupt) == "not json" && store.HasCutoffFact && store.Warning != null, "Corrupt save handling");
-            return "PASS: normal 360s/debug 60s clock, pause/resume, early/double requests in both orders, ten resets, versioned observation persistence and deduplication; future save preserved. This is a state test, not a Play Mode test.";
+            return "PASS: normal 360s/debug 60s clock, pause/resume, early/double requests, versioned persistence/deduplication; independent explosion experience, legacy observations do not grant it; future save preserved. State test, not Play Mode.";
         }
 
         public static void ValidateScene(Scene scene)

@@ -21,6 +21,7 @@ namespace Motel
         private static ObservationStore knowledge;
         private static bool? sessionDebug;
         private static bool resumeAfterReload;
+        private static string explosionReloadPath;
         private static MotelLoopController active;
         private readonly AttemptClock clock = new AttemptClock();
         private bool paused = true, observationsOpen, applicationFocused;
@@ -45,6 +46,7 @@ namespace Motel
         public static bool KnowsFamilyPlacement => knowledge != null && knowledge.HasFamilyFact;
         public static bool KnowsMarinaRescue => knowledge != null && knowledge.HasMarinaFact;
         public static bool KnowsLeraRescue => knowledge != null && knowledge.HasLeraFact;
+        public static bool HasExperiencedExplosion => knowledge != null && knowledge.HasExperiencedExplosion;
 
         public void RememberFamilyPlacement() { if (!Transitioning) knowledge.RememberFamilyPlacement(); }
         public void RememberMarinaRescue() { if (!Transitioning) knowledge.RememberMarinaRescue(); }
@@ -84,6 +86,7 @@ namespace Motel
             knowledge = null;
             sessionDebug = null;
             resumeAfterReload = false;
+            explosionReloadPath = null;
             active = null;
             Time.timeScale = 1;
         }
@@ -116,6 +119,12 @@ namespace Motel
                 return;
             }
             knowledge ??= new ObservationStore(Path.Combine(Application.persistentDataPath, "observations-v1.json"));
+            if (explosionReloadPath == gameObject.scene.path)
+            {
+                // Only a completed accident followed by the new scene grants this knowledge.
+                explosionReloadPath = null;
+                knowledge.RememberExperiencedExplosion();
+            }
             sessionDebug ??= debugSixtySecondCycle;
             applicationFocused = Application.isFocused;
             player.ExternalCursorControl = true;
@@ -221,7 +230,10 @@ namespace Motel
             fade = 1;
             resumeAfterReload = true;
             string path = gameObject.scene.path;
+            explosionReloadPath = path;
             AsyncOperation loading;
+            try
+            {
 #if UNITY_EDITOR
             // Also works when the scene has not been added to the user's Build Profile.
             loading = UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(path,
@@ -229,8 +241,18 @@ namespace Motel
 #else
             loading = SceneManager.LoadSceneAsync(path, LoadSceneMode.Single);
 #endif
+            }
+            catch (System.Exception error)
+            {
+                explosionReloadPath = null;
+                resumeAfterReload = false;
+                SetPaused(true);
+                Debug.LogException(error, this);
+                yield break;
+            }
             if (loading == null)
             {
+                explosionReloadPath = null;
                 resumeAfterReload = false;
                 SetPaused(true);
                 Debug.LogError("Could not reload the motel scene.", this);

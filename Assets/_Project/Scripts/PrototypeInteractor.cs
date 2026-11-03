@@ -20,6 +20,7 @@ namespace Motel
         private MarinaEvacuee marina;
         private LeraEvacuee lera;
         private RoomKeysPickup keys;
+        private GuestRegister register;
         private FamilyEpisode family;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
@@ -40,6 +41,7 @@ namespace Motel
             vadim = null;
             inspection = null;
             marina = null; lera = null; keys = null;
+            register = null;
             if (player == null || viewCamera == null || !player.HasControl ||
                 loop != null && loop.SuppressInteractionUI)
                 return;
@@ -60,6 +62,7 @@ namespace Motel
                 marina = hit.collider.GetComponentInParent<MarinaEvacuee>();
                 lera = hit.collider.GetComponentInParent<LeraEvacuee>();
                 keys = hit.collider.GetComponentInParent<RoomKeysPickup>();
+                register = hit.collider.GetComponentInParent<GuestRegister>();
             }
 
             if (player.InteractionPressed)
@@ -72,6 +75,7 @@ namespace Motel
                 else if (marina != null) marina.Interact();
                 else if (lera != null) lera.Interact();
                 else if (keys != null) keys.Interact();
+                else if (register != null) register.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -112,6 +116,8 @@ namespace Motel
                     DrawLabel(lera.Prompt, Screen.height * 0.5f + 24f);
                 else if (keys != null)
                     DrawLabel(keys.Prompt, Screen.height * 0.5f + 24f);
+                else if (register != null)
+                    DrawLabel(register.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }

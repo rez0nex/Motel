@@ -26,6 +26,7 @@ namespace Motel.Editor
             var family = One<FamilyEpisode>(); var marina = One<MarinaEvacuee>(); var lera = One<LeraEvacuee>();
             var keys = One<RoomKeysPickup>(); var lock8 = One<RoomEightLock>(); var loop = One<MotelLoopController>();
             var dialogue = One<DialogueController>(); var player = One<FirstPersonController>();
+            Require(lera.Age == 14, "Lera age must be 14");
             var f = new SerializedObject(family);
             Require(f.FindProperty("loop").objectReferenceValue == loop && f.FindProperty("dialogue").objectReferenceValue == dialogue &&
                 f.FindProperty("player").objectReferenceValue == player.transform && f.FindProperty("marina").objectReferenceValue == marina &&

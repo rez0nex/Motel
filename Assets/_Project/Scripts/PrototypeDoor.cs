@@ -19,6 +19,7 @@ namespace Motel
             ? "E — заперто · нужны ключи № 8" : "E — открыть";
         // NPCs wait outside the swing until the existing door has finished opening.
         public bool IsFullyOpen => wantsOpen && Mathf.Abs(currentAngle - openAngle) < 0.5f;
+        public bool IsOpenRequested => wantsOpen;
 
         private void Awake()
         {

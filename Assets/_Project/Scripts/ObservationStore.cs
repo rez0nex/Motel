@@ -27,6 +27,7 @@ namespace Motel
             public bool familyPlacementKnown;
             public bool marinaRescued;
             public bool leraRescued;
+            public bool experiencedExplosion;
         }
 
         private readonly string path;
@@ -38,6 +39,8 @@ namespace Motel
         public bool HasFamilyFact { get; private set; }
         public bool HasMarinaFact { get; private set; }
         public bool HasLeraFact { get; private set; }
+        // Progress knowledge is independent of the observation list and cannot be inferred from old facts.
+        public bool HasExperiencedExplosion { get; private set; }
         public string[] Facts
         {
             get
@@ -70,6 +73,7 @@ namespace Motel
                 HasFamilyFact = data.familyPlacementKnown;
                 HasMarinaFact = data.marinaRescued;
                 HasLeraFact = data.leraRescued;
+                HasExperiencedExplosion = data.experiencedExplosion;
             }
             catch (Exception e) when (e is IOException || e is InvalidDataException || e is UnauthorizedAccessException || e is ArgumentException)
             {
@@ -128,6 +132,12 @@ namespace Motel
             HasLeraFact = true; Save(); return true;
         }
 
+        public bool RememberExperiencedExplosion()
+        {
+            if (HasExperiencedExplosion) return false;
+            HasExperiencedExplosion = true; Save(); return true;
+        }
+
         private void Save()
         {
             if (!canWrite) return;
@@ -138,7 +148,8 @@ namespace Motel
                 string json = JsonUtility.ToJson(new SaveData { version = 1, cutoffCausedExplosion = HasCutoffFact,
                     leonidRescued = HasLeonidFact, equipmentOverheatInspected = HasEquipmentFact,
                     vadimRescued = HasVadimFact, familyPlacementKnown = HasFamilyFact,
-                    marinaRescued = HasMarinaFact, leraRescued = HasLeraFact }, true);
+                    marinaRescued = HasMarinaFact, leraRescued = HasLeraFact,
+                    experiencedExplosion = HasExperiencedExplosion }, true);
                 using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     byte[] bytes = new UTF8Encoding(false).GetBytes(json);
