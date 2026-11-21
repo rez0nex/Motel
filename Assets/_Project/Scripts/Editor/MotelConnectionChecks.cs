@@ -36,17 +36,17 @@ namespace Motel.Editor
             try
             {
                 wardrobe.transform.position = MotelConnectionSceneSetup.WardrobeEnd; Physics.SyncTransforms();
-                Require(Blocked(new Vector3(19.8f, 0.05f, -5.53f), new Vector3(22.35f, 0.05f, -5.53f), 0.33f) == "Door Panel", "Closed door does not block");
+                Require(Blocked(new Vector3(19.8f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), new Vector3(22.35f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), 0.33f) == "Door Panel", "Closed door does not block");
                 door.transform.localRotation = closed * Quaternion.Euler(0, 95, 0); Physics.SyncTransforms();
                 foreach (float radius in new[] { 0.33f, 0.315f })
                 {
-                    Require(Blocked(new Vector3(19.8f, 0.05f, -5.53f), new Vector3(22.35f, 0.05f, -5.53f), radius) == null, "Open 7→8 passage blocked");
-                    Require(Blocked(new Vector3(22.35f, 0.05f, -5.53f), new Vector3(19.8f, 0.05f, -5.53f), radius) == null, "Open 8→7 passage blocked");
+                    Require(Blocked(new Vector3(19.8f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), new Vector3(22.35f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), radius) == null, "Open 7→8 passage blocked");
+                    Require(Blocked(new Vector3(22.35f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), new Vector3(19.8f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), radius) == null, "Open 8→7 passage blocked");
                 }
-                Require(Blocked(new Vector3(22.96f, 0.05f, -5.28f), new Vector3(22.71f, 0.05f, -4.53f), 0.315f, One<LeraEvacuee>().transform) == null, "Lera initial step blocked");
+                Require(Blocked(new Vector3(22.96f, 0.05f, -5.28f+MotelBlockoutPlan.ResidentialZ), new Vector3(22.71f, 0.05f, -4.53f+MotelBlockoutPlan.ResidentialZ), 0.315f, One<LeraEvacuee>().transform) == null, "Lera initial step blocked");
                 wardrobe.transform.position = start; Physics.SyncTransforms();
-                Require(Blocked(new Vector3(19.8f, 0.05f, -5.53f), new Vector3(22.35f, 0.05f, -5.53f), 0.33f) == wardrobe.name, "Closed wardrobe does not block");
-                FirstHit(wardrobe, new Vector3(19.85f, 1.65f, -5.53f));
+                Require(Blocked(new Vector3(19.8f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), new Vector3(22.35f, 0.05f, -5.53f+MotelBlockoutPlan.ResidentialZ), 0.33f) == wardrobe.name, "Closed wardrobe does not block");
+                FirstHit(wardrobe, new Vector3(19.85f, 1.65f, -5.53f+MotelBlockoutPlan.ResidentialZ));
                 FirstHit(map, new Vector3(1.55f, 1.65f, -12.2f));
             }
             finally { wardrobe.transform.position = start; door.transform.localRotation = closed; Physics.SyncTransforms(); }

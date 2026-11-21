@@ -42,7 +42,7 @@ namespace Motel
             {
                 if (marina.CurrentStage == MarinaEvacuee.Stage.Safe) return MotherWhereabouts.Safe;
                 Vector3 p = marina.transform.position;
-                if (p.x > 26.9f || p.x > 6.3f && p.z < -8.1f) return MotherWhereabouts.Courtyard;
+                if (p.x > 26.9f || p.x > 6.3f && p.z < -8.1f + MotelSpatialLayout.OffsetFor(this)) return MotherWhereabouts.Courtyard;
                 return marina.CurrentStage == MarinaEvacuee.Stage.InRoom
                     ? MotherWhereabouts.InRoom : MotherWhereabouts.LeavingBuilding;
             }

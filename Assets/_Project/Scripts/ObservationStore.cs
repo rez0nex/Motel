@@ -16,6 +16,7 @@ namespace Motel
         public const string FamilyFact = "Марина приехала с дочерью Лерой; Лера размещена в соседнем номере 8";
         public const string MarinaFact = "Марина из номера 7 добралась до места сбора на парковке";
         public const string LeraFact = "Лера из номера 8 прошла с администратором к месту сбора на парковке";
+        public const string BypassFact = "После обхода сгоревшего модуля и перезапуска генератора произошёл взрыв";
         [Serializable]
         private sealed class SaveData
         {
@@ -28,6 +29,7 @@ namespace Motel
             public bool marinaRescued;
             public bool leraRescued;
             public bool experiencedExplosion;
+            public bool bypassStartCausedExplosion;
         }
 
         private readonly string path;
@@ -39,6 +41,7 @@ namespace Motel
         public bool HasFamilyFact { get; private set; }
         public bool HasMarinaFact { get; private set; }
         public bool HasLeraFact { get; private set; }
+        public bool HasBypassFact { get; private set; }
         // Progress knowledge is independent of the observation list and cannot be inferred from old facts.
         public bool HasExperiencedExplosion { get; private set; }
         public string[] Facts
@@ -53,6 +56,7 @@ namespace Motel
                 if (HasFamilyFact) facts.Add(FamilyFact);
                 if (HasMarinaFact) facts.Add(MarinaFact);
                 if (HasLeraFact) facts.Add(LeraFact);
+                if (HasBypassFact) facts.Add(BypassFact);
                 return facts.ToArray();
             }
         }
@@ -74,6 +78,7 @@ namespace Motel
                 HasMarinaFact = data.marinaRescued;
                 HasLeraFact = data.leraRescued;
                 HasExperiencedExplosion = data.experiencedExplosion;
+                HasBypassFact = data.bypassStartCausedExplosion;
             }
             catch (Exception e) when (e is IOException || e is InvalidDataException || e is UnauthorizedAccessException || e is ArgumentException)
             {
@@ -138,6 +143,12 @@ namespace Motel
             HasExperiencedExplosion = true; Save(); return true;
         }
 
+        public bool RememberBypassExplosion()
+        {
+            if (HasBypassFact) return false;
+            HasBypassFact = true; Save(); return true;
+        }
+
         private void Save()
         {
             if (!canWrite) return;
@@ -149,7 +160,7 @@ namespace Motel
                     leonidRescued = HasLeonidFact, equipmentOverheatInspected = HasEquipmentFact,
                     vadimRescued = HasVadimFact, familyPlacementKnown = HasFamilyFact,
                     marinaRescued = HasMarinaFact, leraRescued = HasLeraFact,
-                    experiencedExplosion = HasExperiencedExplosion }, true);
+                    experiencedExplosion = HasExperiencedExplosion, bypassStartCausedExplosion = HasBypassFact }, true);
                 using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     byte[] bytes = new UTF8Encoding(false).GetBytes(json);

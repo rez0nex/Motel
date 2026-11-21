@@ -4,8 +4,8 @@ namespace Motel.Editor
 {
     public static class MotelConnectionSceneSetup
     {
-        public static readonly Vector3 WardrobeStart = new Vector3(21.08f, 0, -5.53f);
-        public static readonly Vector3 WardrobeEnd = new Vector3(21.08f, 0, -4.30f);
+        public static readonly Vector3 WardrobeStart = new Vector3(21.08f, 0, -5.53f+MotelBlockoutPlan.ResidentialZ);
+        public static readonly Vector3 WardrobeEnd = new Vector3(21.08f, 0, -4.30f+MotelBlockoutPlan.ResidentialZ);
 
         public static void Create(Transform root, Transform belongings, MotelGuestRoomModule.Layout room,
             MotelLoopController loop, DialogueController window)
@@ -27,8 +27,8 @@ namespace Motel.Editor
             // Visible trim above/beside the smaller cabinet lets the player notice the hidden door.
             Transform trim = Child(belongings, "Connection Door Frame");
             foreach (float z in new[] { -4.84f, -6.22f })
-                Part(trim, "Upright " + z, new Vector3(21.38f, 1.17f, z), new Vector3(0.07f, 2.34f, 0.06f), "Paint");
-            Part(trim, "Lintel", new Vector3(21.38f, 2.34f, -5.53f), new Vector3(0.07f, 0.07f, 1.44f), "Paint");
+                Part(trim, "Upright " + z, new Vector3(21.38f, 1.17f, z+MotelBlockoutPlan.ResidentialZ), new Vector3(0.07f, 2.34f, 0.06f), "Paint");
+            Part(trim, "Lintel", new Vector3(21.38f, 2.34f, -5.53f+MotelBlockoutPlan.ResidentialZ), new Vector3(0.07f, 0.07f, 1.44f), "Paint");
             CreatePlan(root, window);
         }
 

@@ -21,8 +21,9 @@ namespace Motel.Editor
             Box(clock, "Clock Stand", new Vector3(0, -0.23f, 0.06f), new Vector3(0.09f, 0.23f, 0.08f), materials["Equipment"], false);
             TextMesh display = Text(clock, "Digital Time", "20:16:00", 0.63f, 0.16f, new Color(0.35f, 1, 0.55f));
 
-            GameObject equipment = root.Find("Furniture/Technical Equipment").gameObject;
-            GameObject indicator = root.Find("Furniture/Equipment Panel").gameObject;
+            // The technical-room builder assigns the final equipment after the shared loop exists.
+            GameObject equipment = Child(group, "Equipment Placeholder").gameObject;
+            GameObject indicator = Child(group, "Indicator Placeholder").gameObject;
             Transform button = Child(group, "Emergency Cutoff");
             // East face of the equipment, reached from the technical room's clear central aisle.
             button.localPosition = new Vector3(1.92f, 1.1f, -8.96f);

@@ -12,7 +12,7 @@ namespace Motel.Editor
         public static Vector3[] ArrivalRoute() => new[] { At(8, -13.6f), At(4.8f, -13.6f), Counter };
         public static Vector3[] CheckInRoute(MotelGuestRoomModule.Layout room) => new[]
         {
-            Counter, At(4.8f, -13.6f), At(4.8f, -11.8f), At(4.8f, 0), At(room.X(0.8f), 0),
+            Counter, At(4.8f, -13.6f), At(4.8f, -11.8f), At(4.8f, MotelBlockoutPlan.ResidentialZ), At(room.X(0.8f), MotelBlockoutPlan.ResidentialZ),
             At(room.X(0.8f), room.Z(1.7f)), At(room.X(1.15f), room.Z(1.7f)),
             At(room.X(1.15f), room.Z(2.9f)), At(room.X(1.25f), room.Z(4)), RoomPosition(room)
         };
@@ -22,8 +22,8 @@ namespace Motel.Editor
             At(room.X(1.15f), room.Z(2.9f)),
             At(room.X(1.15f), room.Z(1.7f)),
             At(room.X(0.8f), room.Z(1.7f)),
-            At(room.X(0.8f), 0), // Gate 4: wait beyond the room door's inward swing.
-            At(4.8f, 0),
+            At(room.X(0.8f), MotelBlockoutPlan.ResidentialZ), // Gate 4: wait beyond the room door's inward swing.
+            At(4.8f, MotelBlockoutPlan.ResidentialZ),
             At(4.8f, -11.8f),
             At(4.8f, -13.6f),
             At(8, -13.6f), // Gate 8: main entrance, opens outside.
