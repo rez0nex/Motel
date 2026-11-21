@@ -96,12 +96,12 @@ namespace Motel.Editor
                 for (int i = 0; i < doors.Length; i++) doors[i].transform.localRotation = poses[i];
                 Physics.SyncTransforms();
             }
-            Vector3 origin = new Vector3(room.X(3), 1.5f, 0);
+            Vector3 origin = new Vector3(room.X(3), 1.5f, MotelBlockoutPlan.ResidentialZ);
             Require(Physics.Raycast(origin, (vadim.transform.position + Vector3.up - origin).normalized, out RaycastHit hit,
                 10, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) && hit.collider.GetComponentInParent<VadimEvacuee>() == null,
                 "World interaction crosses room wall");
-            origin = new Vector3(2.55f, 1.45f, -9.35f);
-            Require(Physics.Raycast(origin, Vector3.back, out hit, 2.5f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) &&
+            origin = inspection.transform.TransformPoint(new Vector3(0, -.35f, -1.5f));
+            Require(Physics.Raycast(origin, (inspection.transform.position-origin).normalized, out hit, 2.5f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) &&
                 hit.collider.GetComponentInParent<EquipmentInspection>() == inspection, "Diagnostic panel inaccessible");
             Require(inspection.GetComponentInChildren<WorldSign>().GetComponent<MeshRenderer>().sharedMaterial.shader.name == "Motel/World Sign Text",
                 "Diagnostic sign lost depth-tested shader");

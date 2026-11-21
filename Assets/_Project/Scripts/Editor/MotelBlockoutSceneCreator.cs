@@ -47,13 +47,13 @@ namespace Motel.Editor
         private static bool CanCreate() => !EditorApplication.isPlayingOrWillChangePlaymode;
 
         // Builds additively and restores the open scene; also usable by an edit-mode automation request.
-        public static void BuildAndSave(bool overwrite)
+        public static void BuildAndSave(bool overwrite, string destination = ScenePath)
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("Stop Play Mode before generating a blockout.");
-            if (File.Exists(ScenePath) && !overwrite)
+            if (File.Exists(destination) && !overwrite)
                 throw new IOException("Existing MotelBlockout requires explicit overwrite confirmation.");
-            if (SceneManager.GetSceneByPath(ScenePath).isLoaded)
+            if (SceneManager.GetSceneByPath(destination).isLoaded)
                 throw new InvalidOperationException("Close the existing blockout before replacing it.");
 
             MotelBlockoutPlan plan = MotelBlockoutPlan.Create();
@@ -78,6 +78,7 @@ namespace Motel.Editor
                 scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
                 SceneManager.SetActiveScene(scene);
                 Transform root = new GameObject("Motel Blockout").transform;
+                root.gameObject.AddComponent<MotelSpatialLayout>().Configure(MotelBlockoutPlan.ResidentialZ);
                 var groups = new Dictionary<string, Transform>();
                 foreach (var box in plan.Boxes)
                 {
@@ -115,6 +116,7 @@ namespace Motel.Editor
                     SerializedObject doorData = new SerializedObject(clone.GetComponent<PrototypeDoor>());
                     doorData.FindProperty("openAngle").floatValue = door.OpenAngle;
                     doorData.ApplyModifiedPropertiesWithoutUndo();
+                    MotelServiceDoorGeometry.Configure(clone.transform, door);
                     if (!door.Operable)
                     {
                         Object.DestroyImmediate(clone.GetComponent<PrototypeDoor>());
@@ -122,6 +124,7 @@ namespace Motel.Editor
                     }
                 }
 
+                MotelServiceDoorGeometry.Hardware(root, plan);
                 GameObject player = Object.Instantiate(playerSource.gameObject);
                 SceneManager.MoveGameObjectToScene(player, scene);
                 player.name = "Player";
@@ -134,13 +137,17 @@ namespace Motel.Editor
                 MotelLeonidSceneSetup.Create(root);
                 MotelVadimSceneSetup.Create(root);
                 MotelFamilySceneSetup.Create(root);
+                MotelBypassSceneSetup.Create(root);
+                MotelLinenRoomSceneSetup.Create(root);
+                MotelServiceBlockUpdater.RefreshAccidentLights(root);
                 MotelLoopChecks.ValidateScene(scene);
                 MotelLeonidChecks.ValidateScene(scene);
                 MotelVadimChecks.ValidateScene(scene);
                 MotelFamilyChecks.ValidateScene(scene);
                 MotelConnectionChecks.ValidateScene(scene);
-                if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Could not save " + ScenePath);
-                Debug.Log(report + "\nScene saved: " + ScenePath);
+                MotelBypassChecks.ValidateScene(scene);
+                if (!EditorSceneManager.SaveScene(scene, destination)) throw new IOException("Could not save " + destination);
+                Debug.Log(report + "\nScene saved: " + destination);
             }
             finally
             {
@@ -187,15 +194,15 @@ namespace Motel.Editor
             main.intensity = 1;
             main.shadows = LightShadows.Soft;
             RenderSettings.sun = main;
-            for (int i = 0; i < 6; i++) PointLight(parent, "Corridor Light " + i, 4.8f + 4 * i, 0);
+            for (int i = 0; i < 6; i++) PointLight(parent, "Corridor Light " + i, 4.8f + 4 * i, MotelBlockoutPlan.ResidentialZ);
             foreach (var room in plan.Rooms)
             {
                 PointLight(parent, room.Id + " Living Light", room.X(2.5f), room.Z(4.5f));
                 PointLight(parent, room.Id + " Bathroom Light", room.X(3.5f), room.Z(1.1f));
             }
-            foreach (var zone in plan.Zones.Where(z => z.Id == "L04" || z.Id == "L11" || z.Id == "L06"))
+            foreach (var zone in plan.Zones.Where(z => z.Id == "L04" || z.Id == "L06"))
                 PointLight(parent, zone.Id + " Light", (zone.MinX + zone.MaxX) / 2, (zone.MinZ + zone.MaxZ) / 2);
-            foreach (float z in new[] { -3f, -7f, -10f, -13.5f }) PointLight(parent, "Service Light " + z, 4.8f, z);
+            foreach (float z in new[] { -13.5f,-9.3f,-5f,-.5f,4.2f,8.2f }) PointLight(parent, "Service Light " + z, 4.8f, z);
             PointLight(parent, "Reception Light", 1.7f, -14.8f);
         }
 

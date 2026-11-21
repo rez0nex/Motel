@@ -8,6 +8,7 @@ namespace Motel.Editor
     {
         public const float Height = 2.8f, WallThickness = 0.16f, DoorWidth = 1.5f, DoorHeight = 2.3f;
         public const float CorridorWidth = 2.4f, GuestStart = 6, RoomPitch = 5.16f, WingEnd = GuestStart + 4 * RoomPitch;
+        public const float ResidentialZ = 9.12f, ServicePitch = 6.24f, TechnicalCenterZ = -7.68f, LinenCenterZ = -1.44f, OfficeCenterZ = 4.8f;
         public const float OuterZ = 1.2f + 6.5f + WallThickness;
         public readonly List<Box> Boxes = new List<Box>();
         public readonly List<Door> Doors = new List<Door>();
@@ -27,6 +28,8 @@ namespace Motel.Editor
         {
             public string Name, From, To;
             public float X, Z, Yaw, Width = DoorWidth, OpenAngle = -95;
+            public float HingeInset, HingeNormalOffset, PanelNormalOffset, Thickness = .12f;
+            public float PanelWidth => Width - .02f - 2 * HingeInset;
             public bool Operable;
         }
         public sealed class Sign
@@ -49,6 +52,8 @@ namespace Motel.Editor
         {
             public string Name;
             public float X, Z, Width;
+            public bool AlongZ;
+            public float SillHeight = Sill, TopHeight = Top;
             public const float Sill = 1.1f, Top = 2.2f;
         }
 
@@ -61,31 +66,36 @@ namespace Motel.Editor
 
         private void Shell()
         {
-            Add("Ground", "Outside", "Ground", 14, -0.17f, -7, 44, 0.26f, 44);
-            Add("Residential Floor", "Floors", "Floor", (GuestStart + WingEnd) / 2, -0.1f, 0, WingEnd - GuestStart + 0.16f, 0.2f, OuterZ * 2 + 0.16f);
-            Add("Corridor Turn Floor", "Floors", "Floor", 4.8f, -0.1f, 0, 2.4f, 0.2f, 2.56f);
-            Add("Service Floor", "Floors", "Floor", 3, -0.1f, -8.6f, 6.16f, 0.2f, 14.8f);
-            float roomDepth = OuterZ - 1.2f;
-            foreach (int direction in new[] { 1, -1 })
-                Add(direction > 0 ? "North Ceiling" : "South Ceiling", "Ceilings", "Ceiling",
-                    (GuestStart + WingEnd) / 2, 2.9f, direction * (OuterZ + 1.2f) / 2, WingEnd - GuestStart + 0.16f, 0.2f, roomDepth);
-            Add("Corridor Ceiling", "Ceilings", "Ceiling", (3.6f + WingEnd) / 2, 2.9f, 0, WingEnd - 3.6f, 0.2f, 2.4f);
-            Add("Service Ceiling", "Ceilings", "Ceiling", 3, 2.9f, -8.6f, 6.16f, 0.2f, 14.8f);
-            float[] roomWindows = Enumerable.Range(0, 4).Select(i => GuestStart + i * RoomPitch + 0.08f + 1.6f).ToArray();
-            WallWithWindows("North Exterior", GuestStart, WingEnd, OuterZ, roomWindows);
-            WallWithWindows("South Exterior", GuestStart, WingEnd, -OuterZ, roomWindows);
-            WallWithWindows("Reception Back", 0, 6, -16, new[] { 4.7f });
-            WallZ("Service West Exterior", 0, -16, -1.2f);
-            WallZ("Corridor West", 3.6f, -1.2f, 1.2f);
-            WallX("Corridor Turn North", 3.6f, GuestStart, 1.2f);
-            WallZ("North West Exterior", GuestStart, 1.2f, OuterZ);
-            WallZ("East Exterior", WingEnd, -OuterZ, OuterZ, 0);
-            WallZ("Service East", 6, -16, -1.2f, -13.6f);
-            DoorAt("Emergency Exit", "L03", "L05", WingEnd, 0, 90, true, "Запасной выход");
-            DoorAt("Main Entrance", "L02", "L01", 6, -13.6f, 90, true, "Главный вход");
-            ZoneAt("L03", 3.6f, WingEnd, -1.2f, 1.2f, 13, 0);
-            ZoneAt("L13", 3.6f, 6, -10.8f, -1.2f, 4.8f, -6);
-            ZoneAt("L02", 0, 6, -16, -10.8f, 4.8f, -12);
+            float r=ResidentialZ;
+            Add("Ground","Outside","Ground",14,-.17f,-7+r/2,44,.26f,44+r);
+            Add("Residential Floor","Floors","Floor",(GuestStart+WingEnd)/2,-.1f,r,WingEnd-GuestStart+.16f,.2f,OuterZ*2+.16f);
+            Add("Corridor Turn Floor","Floors","Floor",4.8f,-.1f,r,2.4f,.2f,2.56f);
+            Add("Reception Floor","Floors","Floor",3,-.1f,-13.4f,6.16f,.2f,5.36f);
+            Add("Service Passage Floor","Floors","Floor",4.8f,-.1f,-1.44f,2.56f,.2f,18.88f);
+            float roomDepth=OuterZ-1.2f;
+            foreach(int direction in new[]{1,-1})Add(direction>0?"North Ceiling":"South Ceiling","Ceilings","Ceiling",(GuestStart+WingEnd)/2,2.9f,r+direction*(OuterZ+1.2f)/2,WingEnd-GuestStart+.16f,.2f,roomDepth);
+            Add("Corridor Ceiling","Ceilings","Ceiling",(3.6f+WingEnd)/2,2.9f,r,WingEnd-3.6f,.2f,2.4f);
+            Add("Reception Ceiling","Ceilings","Ceiling",3,2.9f,-13.4f,6.16f,.2f,5.36f);
+            Add("Service Passage Ceiling","Ceilings","Ceiling",4.8f,2.9f,-1.44f,2.56f,.2f,18.72f);
+            foreach(var service in new[]{new {Name="Technical",Z=TechnicalCenterZ},new {Name="Linen",Z=LinenCenterZ},new {Name="Office",Z=OfficeCenterZ}})
+            {
+                Add(service.Name+" Floor","Floors","Floor",.08f,-.1f,service.Z,7.04f,.2f,6.24f);
+                Add(service.Name+" Ceiling","Ceilings","Ceiling",.08f,2.9f,service.Z,7.04f,.2f,6.24f);
+            }
+            float[] windows=Enumerable.Range(0,4).Select(i=>GuestStart+i*RoomPitch+.08f+1.6f).ToArray();
+            WallWithWindows("North Exterior",GuestStart,WingEnd,r+OuterZ,windows);
+            WallWithWindows("South Exterior",GuestStart,WingEnd,r-OuterZ,windows);
+            WallWithWindows("Reception Back",0,6,-16,new[]{4.7f});
+            WallZ("Reception West",0,-16,-10.8f);
+            WallZ("Corridor West",3.6f,r-1.2f,r+1.2f);WallX("Corridor Turn North",3.6f,GuestStart,r+1.2f);
+            WallZ("North West Exterior",GuestStart,r+1.2f,r+OuterZ);
+            WallZ("East Exterior",WingEnd,r-OuterZ,r+OuterZ,r);
+            WallZ("Service East",6,-16,r-1.2f,-13.6f);
+            DoorAt("Emergency Exit","L03","L05",WingEnd,r,90,true,"Запасной выход");
+            DoorAt("Main Entrance","L02","L01",6,-13.6f,90,true,"Главный вход");
+            ZoneAt("L03",3.6f,WingEnd,r-1.2f,r+1.2f,13,r);
+            ZoneAt("L13",3.6f,6,-10.8f,r-1.2f,4.8f,-1.44f);
+            ZoneAt("L02",0,6,-16,-10.8f,4.8f,-12);
         }
 
         private void GuestRooms()
@@ -93,50 +103,71 @@ namespace Motel.Editor
             for (int i = 0; i < 4; i++)
             {
                 float left = GuestStart + i * RoomPitch;
-                MotelGuestRoomModule.Build(this, i + 1, left, 1.2f, 1, i == 1 || i == 3);
-                MotelGuestRoomModule.Build(this, i + 5, left, -1.2f, -1, i >= 2);
+                MotelGuestRoomModule.Build(this, i + 1, left, ResidentialZ+1.2f, 1, i == 1 || i == 3);
+                MotelGuestRoomModule.Build(this, i + 5, left, ResidentialZ-1.2f, -1, i >= 2);
                 if (i == 0) continue;
-                WallZ("North Divider " + i, left, 1.2f, OuterZ);
+                WallZ("North Divider " + i, left, ResidentialZ+1.2f, ResidentialZ+OuterZ);
                 if (i == 3)
                 {
                     var seven = Rooms.Single(r => r.Number == 7);
                     float connectionZ = seven.Z(MotelGuestRoomModule.ConnectionDepth);
-                    WallWithOpenings("Divider 7-8", -OuterZ, -1.2f, left, true, new Opening(connectionZ, 1.2f));
+                    WallWithOpenings("Divider 7-8", ResidentialZ-OuterZ, ResidentialZ-1.2f, left, true, new Opening(connectionZ, 1.2f));
                     // Park the leaf north of the passage, inside 7; the old swing cut Lera's first step in 8.
                     DoorAt("Connection 7-8", "Room7.Living", "Room8.Living", left, connectionZ, 90, true, "7 ↔ 8", 1.2f, 95);
                 }
-                else WallZ("South Divider " + i, left, -OuterZ, -1.2f);
+                else WallZ("South Divider " + i, left, ResidentialZ-OuterZ, ResidentialZ-1.2f);
             }
         }
 
         private void ServiceWing()
         {
-            WallX("Office North", 0, 3.6f, -1.2f);
-            WallX("Office Linen Divider", 0, 3.6f, -4.4f);
-            WallX("Linen Technical Divider", 0, 3.6f, -7.6f);
-            WallX("Technical Reception Divider", 0, 3.6f, -10.8f);
-            WallZ("Service Doors Wall", 3.6f, -10.8f, -1.2f, -9.2f, -6, -2.8f);
-            DoorAt("Office", "L13", "L04", 3.6f, -2.8f, -90, true, "Кабинет");
-            DoorAt("Linen", "L13", "L11", 3.6f, -6, -90, true, "Бельевая");
-            DoorAt("Technical", "L13", "L06", 3.6f, -9.2f, -90, true, "Техническая");
-            ZoneAt("L04", 0, 3.6f, -4.4f, -1.2f, 2.5f, -2.3f);
-            ZoneAt("L11", 0, 3.6f, -7.6f, -4.4f, 2.5f, -5.5f);
-            ZoneAt("L06", 0, 3.6f, -10.8f, -7.6f, 2.5f, -8.7f);
-            Add("Office Desk", "Furniture", "Furniture", 1.1f, 0.45f, -2.8f, 1.5f, 0.9f, 1);
-            Add("Linen Shelves", "Furniture", "Furniture", 0.65f, 0.9f, -6, 0.8f, 1.8f, 2);
-            Add("Technical Equipment", "Furniture", "Equipment", 1.1f, 0.85f, -9.3f, 1.5f, 1.7f, 1.2f);
-            Add("Equipment Panel", "Furniture", "Marker", 1.86f, 1.3f, -9.3f, 0.04f, 0.4f, 0.6f, false);
-            Add("Reception Counter", "Furniture", "Furniture", 3, 0.5f, -13.6f, 0.9f, 1, 2.8f);
-            Add("Reception Countertop", "Furniture", "Furniture", 3, 1.025f, -13.6f, 1, 0.05f, 2.9f);
-            Add("Reception Front Panel", "Furniture", "Equipment", 3.46f, 0.55f, -13.6f, 0.02f, 0.6f, 2.55f, false);
-            Add("Reception Monitor", "Furniture", "Equipment", 2.75f, 1.25f, -13.6f, 0.1f, 0.4f, 0.55f, false);
+            WallX("Office North",-3.44f,3.6f,7.92f);
+            WallX("Office Linen Divider",-3.44f,3.6f,1.68f);
+            WallX("Linen Technical Divider",-3.44f,3.6f,-4.56f);
+            WallX("Technical Reception Divider",-3.44f,3.6f,-10.8f);
+            WallZ("Service Doors Wall",3.6f,-10.8f,7.92f,TechnicalCenterZ,LinenCenterZ,OfficeCenterZ);
+            DoorAt("Office","L13","L04",3.6f,OfficeCenterZ,-90,true,"Кабинет");
+            DoorAt("Linen","L13","L11",3.6f,LinenCenterZ,-90,true,"Бельевая",DoorWidth,-95);
+            DoorAt("Technical","L13","L06",3.6f,TechnicalCenterZ,-90,true,"Техническая",DoorWidth,-95);
+            foreach (var door in Doors.Where(d => d.Name == "Office" || d.Name == "Linen" || d.Name == "Technical"))
+            {
+                door.HingeInset = .045f; door.HingeNormalOffset = .105f;
+                door.PanelNormalOffset = -.045f; door.Thickness = .08f;
+                foreach (int side in new[] { -1, 1 })
+                    Add(door.Name + " Frame Jamb " + side, "Service Door Frames", "Furniture", 3.6f, 1.15f,
+                        door.Z + side * (door.Width / 2 - .0225f), .24f, 2.30f, .045f);
+                Add(door.Name + " Frame Header", "Service Door Frames", "Furniture", 3.6f, 2.285f, door.Z, .24f, .03f, door.Width);
+            }
+            ZoneAt("L04",-3.36f,3.52f,1.76f,7.84f,-1.0f,OfficeCenterZ);
+            ZoneAt("L11",-3.36f,3.52f,-4.48f,1.60f,.08f,LinenCenterZ);
+            ZoneAt("L06",-3.36f,3.52f,-10.72f,-4.64f,.08f,TechnicalCenterZ);
+            // A high frosted aperture in the OUTER west wall of the linen room.
+            const float wz=-3.06f, ww=1.25f, sill=1.85f, top=2.45f;
+            WallZ("Service West Lower",-3.44f,-10.8f,wz-ww/2);
+            WallZ("Service West Upper",-3.44f,wz+ww/2,7.92f);
+            Add("Linen Window Sill Wall","Walls","Wall",-3.44f,sill/2,wz,.16f,sill,ww);
+            Add("Linen Window Header Wall","Walls","Wall",-3.44f,(top+Height)/2,wz,.16f,Height-top,ww);
+            const string name="Linen Exterior Window 0";
+            Windows.Add(new Window{Name=name,X=-3.44f,Z=wz,Width=ww,AlongZ=true,SillHeight=sill,TopHeight=top});
+            Add(name+" Glass","Windows","Glass",-3.44f,(sill+top)/2,wz,.035f,top-sill-.06f,ww-.06f);
+            foreach(int side in new[]{-1,1})
+            {
+                Add(name+" Vertical "+side,"Windows","Equipment",-3.44f,(sill+top)/2,wz+side*(ww-.055f)/2,.18f,top-sill,.055f);
+                Add(name+" Horizontal "+side,"Windows","Equipment",-3.44f,(sill+top)/2+side*(top-sill-.055f)/2,wz,.18f,.055f,ww);
+            }
+            Add("Office Desk","Furniture","Furniture",1.1f,.45f,OfficeCenterZ,1.5f,.9f,1);
+            Add("Reception Counter","Furniture","Furniture",3,.5f,-13.6f,.9f,1,2.8f);
+            Add("Reception Countertop","Furniture","Furniture",3,1.025f,-13.6f,1,.05f,2.9f);
+            Add("Reception Front Panel","Furniture","Equipment",3.46f,.55f,-13.6f,.02f,.6f,2.55f,false);
+            Add("Reception Monitor","Furniture","Equipment",2.75f,1.25f,-13.6f,.1f,.4f,.55f,false);
         }
 
         private void Outside()
         {
             Add("Parking Surface", "Outside", "Asphalt", 16.5f, -0.025f, -15.5f, 19, 0.03f, 10, false);
             Add("Road", "Outside", "Asphalt", 15, -0.025f, -23, 36, 0.03f, 4, false);
-            Add("Emergency Walkway", "Outside", "Paving", WingEnd + 1.7f, -0.025f, -8.7f, 3.2f, 0.03f, 19.4f, false);
+            Add("Emergency Walkway", "Outside", "Paving", WingEnd + 1.7f, -0.025f, -8.7f+ResidentialZ/2, 3.2f, 0.03f, 19.4f+ResidentialZ, false);
+            Add("Courtyard Extension","Outside","Paving",16.5f,-.025f,-4.66f,19,.03f,11.68f,false);
             Add("Main Walkway", "Outside", "Paving", 7.1f, -0.025f, -13.6f, 2.2f, 0.03f, 3, false);
             for (int i = 0; i <= 4; i++)
                 Add("Parking Stripe " + i, "Outside", "Paint", 8.5f + i * 4, 0.002f, -13.6f, 0.08f, 0.012f, 5, false);
@@ -144,7 +175,7 @@ namespace Motel.Editor
             Add("Assembly Marker", "Outside", "Marker", 18, 0.005f, -18.1f, 3, 0.02f, 2, false);
             Add("Assembly Sign Post", "Outside", "Equipment", 19.9f, 1, -18.8f, 0.08f, 2, 0.08f);
             ZoneAt("L01", 7, 26, -20.5f, -10.5f, 18, -18.1f);
-            ZoneAt("L05", WingEnd + 0.1f, WingEnd + 3.4f, -19, 1.2f, WingEnd + 2, 0);
+            ZoneAt("L05", WingEnd + 0.1f, WingEnd + 3.4f, -19, ResidentialZ+1.2f, WingEnd + 2, ResidentialZ);
             ZoneAt("L12", -3, 33, -25, -21, 18, -23);
         }
 

@@ -6,8 +6,8 @@ namespace Motel.Editor
 {
     public static class MotelBlockoutValidation
     {
-        private const float Radius = 0.33f, Step = 0.05f, MinX = -2, MinZ = -25;
-        private const int Columns = 701, Rows = 681;
+        private const float Radius = 0.33f, Step = 0.05f, MinX = -8, MinZ = -25;
+        private const int Columns = 821, Rows = 881;
 
         public static string Validate(MotelBlockoutPlan p)
         {
@@ -15,19 +15,20 @@ namespace Motel.Editor
             Require(p.Doors.Count == 22 && p.Doors.Count(d=>d.Operable) == 18, "Door count");
             Require(p.Boxes.Select(b=>b.Name).Distinct().Count() == p.Boxes.Count, "Duplicate geometry names");
             Require(p.Signs.Count == 22 && p.Signs.Select(s=>s.Id).Distinct().Count() == 22, "Duplicate sign identity");
-            Require(p.Windows.Count == 9, "One window per room and reception");
+            Require(p.Windows.Count == 10, "Guest/reception windows and one high linen window");
             foreach (var window in p.Windows)
             {
                 var glass = p.Boxes.Single(b => b.Name == window.Name + " Glass");
                 Require(glass.Solid && glass.Material == "Glass" && glass.Y - glass.Height / 2 > 1,
                     "Window must have solid glazing above the sill");
-                Require(!p.Boxes.Any(b => b.Group == "Walls" && Math.Abs(b.Z - window.Z) < 0.01 &&
-                    Math.Abs(b.X - window.X) < b.Width / 2 && b.Y - b.Height / 2 < 1.6f && b.Y + b.Height / 2 > 1.6f),
+                float probeY=(window.SillHeight+window.TopHeight)/2;
+                Require(!p.Boxes.Any(b => b.Group == "Walls" && Math.Abs(b.Z - window.Z) < b.Depth/2 &&
+                    Math.Abs(b.X - window.X) < b.Width / 2 && b.Y - b.Height / 2 < probeY && b.Y + b.Height / 2 > probeY),
                     "Window aperture is filled by a wall");
             }
             foreach (var b in p.Boxes) Require(b.Width > 0 && b.Height > 0 && b.Depth > 0, "Invalid box " + b.Name);
             foreach (var d in p.Doors) Require(d.Width >= 1 &&
-                (d.Name == "Connection 7-8" ? d.OpenAngle == 95 : Math.Abs(d.OpenAngle) == 95), "Door size or angle " + d.Name);
+                Math.Abs(d.OpenAngle) == 95, "Door size or angle " + d.Name);
             foreach (var r in p.Rooms)
             {
                 Require(r.Accessible == new[] {2,4,7,8}.Contains(r.Number), "Accessible rooms changed");
@@ -144,20 +145,21 @@ namespace Motel.Editor
         private sealed class DoorPose
         {
             public readonly double Hx,Hz,Cos,Sin;
-            private readonly double halfWidth;
+            private readonly double halfWidth, halfThickness, centerAlong, centerAcross;
             public DoorPose(MotelBlockoutPlan.Door d,float angle)
             {
                 double r=d.Yaw*Math.PI/180;
-                Hx=d.X-d.Width/2*Math.Cos(r); Hz=d.Z+d.Width/2*Math.Sin(r);
+                Hx=d.X+(-d.Width/2+d.HingeInset)*Math.Cos(r)+d.HingeNormalOffset*Math.Sin(r);
+                Hz=d.Z-(-d.Width/2+d.HingeInset)*Math.Sin(r)+d.HingeNormalOffset*Math.Cos(r);
                 r=(d.Yaw+angle)*Math.PI/180; Cos=Math.Cos(r); Sin=Math.Sin(r);
-                halfWidth=(d.Width-0.02)/2;
+                halfWidth=d.PanelWidth/2;halfThickness=d.Thickness/2;
+                centerAlong=d.Width/2-d.HingeInset;centerAcross=d.PanelNormalOffset;
             }
             public bool Contains(double x,double z,double radius)
             {
-                double centerOffset=halfWidth+0.01;
-                double cx=Hx+centerOffset*Cos,cz=Hz-centerOffset*Sin;
+                double cx=Hx+centerAlong*Cos+centerAcross*Sin,cz=Hz-centerAlong*Sin+centerAcross*Cos;
                 double lx=(x-cx)*Cos-(z-cz)*Sin,lz=(x-cx)*Sin+(z-cz)*Cos;
-                double dx=Math.Max(Math.Abs(lx)-halfWidth,0),dz=Math.Max(Math.Abs(lz)-0.06,0);
+                double dx=Math.Max(Math.Abs(lx)-halfWidth,0),dz=Math.Max(Math.Abs(lz)-halfThickness,0);
                 return dx*dx+dz*dz<=radius*radius;
             }
         }
@@ -169,8 +171,8 @@ namespace Motel.Editor
                 {
                     float angle=door.OpenAngle*step/19;
                     var pose=new DoorPose(door,angle);
-                    for(double along=0.2;along<=door.Width-0.009;along+=0.035)
-                        foreach(double across in new[] {-0.06,0.0,0.06})
+                    for(double along=0.2;along<=door.Width-0.009-2*door.HingeInset;along+=0.035)
+                        foreach(double across in new[] {door.PanelNormalOffset-door.Thickness/2,door.PanelNormalOffset,door.PanelNormalOffset+door.Thickness/2})
                         {
                             double x=pose.Hx+along*pose.Cos+across*pose.Sin,z=pose.Hz-along*pose.Sin+across*pose.Cos;
                             foreach(var box in solids)

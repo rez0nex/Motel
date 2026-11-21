@@ -9,6 +9,7 @@ namespace Motel
     [DisallowMultipleComponent, DefaultExecutionOrder(-100)]
     public sealed class MotelLoopController : MonoBehaviour
     {
+        public enum AccidentOutcome { Undecided, Reset, Ending }
         [SerializeField] private FirstPersonController player;
         [SerializeField] private TextMesh receptionClock;
         [SerializeField] private GameObject equipmentIndicator;
@@ -17,11 +18,13 @@ namespace Motel
         [SerializeField] private Light[] accidentLights;
         [SerializeField] private bool debugSixtySecondCycle;
         [SerializeField] private DialogueController dialogue;
+        [SerializeField] private ModuleBypassPanel bypassPanel;
 
         private static ObservationStore knowledge;
         private static bool? sessionDebug;
         private static bool resumeAfterReload;
         private static string explosionReloadPath;
+        private static string bypassExplosionReloadPath;
         private static MotelLoopController active;
         private readonly AttemptClock clock = new AttemptClock();
         private bool paused = true, observationsOpen, applicationFocused;
@@ -30,15 +33,51 @@ namespace Motel
         private string lastClockText;
         private GUIStyle titleStyle, bodyStyle;
         private Vector2 observationScroll;
+        private MotelEndingSequence ending;
+
+        public AccidentOutcome Outcome { get; private set; }
+        public int RescueMaskAtAccident { get; private set; }
+        public bool EndingActive => Outcome == AccidentOutcome.Ending;
+        public MotelEndingSequence Ending => ending;
+
+        // A snapshot of this scene's actual arrivals; persistent observations never participate.
+        public int CurrentRescueMask
+        {
+            get
+            {
+                var scene = gameObject.scene;
+                var vadim = OneInScene<VadimEvacuee>(scene);
+                var leonid = OneInScene<LeonidEvacuee>(scene);
+                var marina = OneInScene<MarinaEvacuee>(scene);
+                var lera = OneInScene<LeraEvacuee>(scene);
+                return (vadim != null && vadim.CurrentStage == VadimEvacuee.Stage.Safe && AtAssembly(vadim) ? 1 : 0) |
+                    (leonid != null && leonid.CurrentStage == LeonidEvacuee.Stage.Safe && AtAssembly(leonid) ? 2 : 0) |
+                    (marina != null && marina.CurrentStage == MarinaEvacuee.Stage.Safe && AtAssembly(marina) ? 4 : 0) |
+                    (lera != null && lera.CurrentStage == LeraEvacuee.Stage.Safe && AtAssembly(lera) ? 8 : 0);
+            }
+        }
+        private static T OneInScene<T>(Scene scene) where T : MonoBehaviour
+        {
+            T found = null;
+            foreach (T candidate in FindObjectsByType<T>())
+                if (candidate.gameObject.scene == scene && candidate.isActiveAndEnabled)
+                { if (found != null) return null; found = candidate; }
+            return found;
+        }
+        private static bool AtAssembly(Component guest) => FamilyEpisode.InSafeArea(guest.transform.position) &&
+            guest.transform.position.y > -0.5f && guest.transform.position.y < 0.75f;
 
         public double Elapsed => clock.Elapsed;
+        public double? RescueAccidentAt => clock.RescueAccidentAt;
         public bool IsPaused => paused;
         public bool Transitioning => clock.AccidentRequested;
         public bool DebugCycle => sessionDebug ?? debugSixtySecondCycle;
         public bool DialogueOpen => dialogue != null && dialogue.IsOpen;
+        public bool BypassOpen => bypassPanel != null && bypassPanel.IsOpen;
         // Scene-owned evidence expires on reload; persistent knowledge below does not.
         public bool EquipmentInspectedThisCycle { get; private set; }
-        public bool SuppressInteractionUI => observationsOpen || Transitioning || DialogueOpen;
+        public bool SuppressInteractionUI => observationsOpen || Transitioning || DialogueOpen || BypassOpen;
+        public static bool KnowsBypassExplosion => knowledge != null && knowledge.HasBypassFact;
         public static bool KnowsCutoff => knowledge != null && knowledge.HasCutoffFact;
         public static bool KnowsLeonidRescue => knowledge != null && knowledge.HasLeonidFact;
         public static bool KnowsEquipmentOverheat => knowledge != null && knowledge.HasEquipmentFact;
@@ -49,15 +88,22 @@ namespace Motel
         public static bool HasExperiencedExplosion => knowledge != null && knowledge.HasExperiencedExplosion;
 
         public void RememberFamilyPlacement() { if (!Transitioning) knowledge.RememberFamilyPlacement(); }
-        public void RememberMarinaRescue() { if (!Transitioning) knowledge.RememberMarinaRescue(); }
-        public void RememberLeraRescue() { if (!Transitioning) knowledge.RememberLeraRescue(); }
+        public void RememberMarinaRescue() { if (!Transitioning) { knowledge.RememberMarinaRescue(); ScheduleAfterArrivals(); } }
+        public void RememberLeraRescue() { if (!Transitioning) { knowledge.RememberLeraRescue(); ScheduleAfterArrivals(); } }
+
+        private void ScheduleAfterArrivals()
+        {
+            if (!Transitioning && !clock.RescueAccidentAt.HasValue)
+                clock.TryScheduleRescueAccident(CurrentRescueMask == 15);
+        }
 
         public void ConfigureDialogue(DialogueController window) => dialogue = window;
+        public void ConfigureBypass(ModuleBypassPanel panel) => bypassPanel = panel;
 
         public void RefreshPlayerControl()
         {
             if (player == null) return;
-            bool blocked = paused || observationsOpen || Transitioning || DialogueOpen;
+            bool blocked = paused || observationsOpen || Transitioning || DialogueOpen || BypassOpen;
             player.SetControlBlocked(blocked);
             if (blocked) player.FreeCursor();
             else player.CaptureCursor();
@@ -65,12 +111,12 @@ namespace Motel
 
         public void RememberLeonidRescue()
         {
-            if (!Transitioning) knowledge.RememberLeonidRescue();
+            if (!Transitioning) { knowledge.RememberLeonidRescue(); ScheduleAfterArrivals(); }
         }
 
         public void RememberVadimRescue()
         {
-            if (!Transitioning) knowledge.RememberVadimRescue();
+            if (!Transitioning) { knowledge.RememberVadimRescue(); ScheduleAfterArrivals(); }
         }
 
         public void RememberEquipmentOverheat()
@@ -87,6 +133,7 @@ namespace Motel
             sessionDebug = null;
             resumeAfterReload = false;
             explosionReloadPath = null;
+            bypassExplosionReloadPath = null;
             active = null;
             Time.timeScale = 1;
         }
@@ -124,6 +171,8 @@ namespace Motel
                 // Only a completed accident followed by the new scene grants this knowledge.
                 explosionReloadPath = null;
                 knowledge.RememberExperiencedExplosion();
+                if (bypassExplosionReloadPath == gameObject.scene.path) knowledge.RememberBypassExplosion();
+                bypassExplosionReloadPath = null;
             }
             sessionDebug ??= debugSixtySecondCycle;
             applicationFocused = Application.isFocused;
@@ -141,14 +190,17 @@ namespace Motel
 
         private void Update()
         {
+            // The ending owns input and presentation; the attempt clock remains latched and frozen.
+            if (EndingActive) { Time.timeScale = 1; player.SetControlBlocked(true); return; }
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
                 observationsOpen = false;
                 if (dialogue != null) dialogue.Close();
+                if (bypassPanel != null) bypassPanel.Close();
                 SetPaused(true);
             }
-            else if (!Transitioning && !DialogueOpen && keyboard != null && keyboard.jKey.wasPressedThisFrame)
+            else if (!Transitioning && !DialogueOpen && !BypassOpen && keyboard != null && keyboard.jKey.wasPressedThisFrame)
             {
                 observationsOpen = !observationsOpen;
                 SetPaused(observationsOpen);
@@ -166,12 +218,13 @@ namespace Motel
                 sessionDebug = !DebugCycle;
 
             Time.timeScale = paused ? 0 : 1;
-            player.SetControlBlocked(paused || observationsOpen || Transitioning || DialogueOpen);
+            player.SetControlBlocked(paused || observationsOpen || Transitioning || DialogueOpen || BypassOpen);
+            ScheduleAfterArrivals();
             // The delta of the click frame belongs to the preceding paused interval.
             clock.Advance(Time.unscaledDeltaTime, paused || resumedThisFrame, DebugCycle);
             resumedThisFrame = false;
             RefreshClock();
-            if (clock.Expired) RequestAccident(false);
+            if (clock.Expired || clock.RescueAccidentDue) RequestAccident(false);
         }
 
         private void SetPaused(bool value)
@@ -185,6 +238,7 @@ namespace Motel
         private void OnApplicationFocus(bool focused)
         {
             applicationFocused = focused;
+            if (EndingActive) return;
             if (!focused && player != null) SetPaused(true);
         }
 
@@ -197,21 +251,28 @@ namespace Motel
             receptionClock.GetComponent<WorldSign>().RefreshNow();
         }
 
-        public bool RequestAccident(bool fromCutoff)
+        public bool RequestAccident(bool fromCutoff) => RequestAccidentCore(fromCutoff, false);
+        public bool RequestBypassAccident() => RequestAccidentCore(false, true);
+
+        private bool RequestAccidentCore(bool fromCutoff, bool fromBypass)
         {
             if (!isActiveAndEnabled || paused || !clock.TryRequestAccident()) return false;
+            RescueMaskAtAccident = CurrentRescueMask;
+            Outcome = RescueMaskAtAccident == 15 ? AccidentOutcome.Ending : AccidentOutcome.Reset;
+            observationsOpen = false;
             if (fromCutoff)
             {
                 equipmentIndicator.SetActive(false);
                 knowledge.RememberCutoff();
             }
             if (dialogue != null) dialogue.Close();
+            if (bypassPanel != null) bypassPanel.Close();
             player.SetControlBlocked(true);
-            StartCoroutine(AccidentAndReload(fromCutoff));
+            StartCoroutine(AccidentAndReload(fromCutoff, fromBypass));
             return true;
         }
 
-        private IEnumerator AccidentAndReload(bool fromCutoff)
+        private IEnumerator AccidentAndReload(bool fromCutoff, bool fromBypass)
         {
             // Let the player see the equipment go dark before the same accident sequence.
             float delay = fromCutoff ? 0.55f : 0;
@@ -223,14 +284,25 @@ namespace Motel
                 if (light != null) { light.color = new Color(1, 0.22f, 0.08f); light.intensity *= 0.15f; }
             for (float t = 0; t < 2.6f; t += Time.deltaTime)
             {
-                flash = Mathf.Clamp01(1 - t / 0.22f) * 0.7f;
+                flash = Mathf.Clamp01(1 - t / 0.22f) * (EndingActive ? 1 : 0.7f);
                 fade = Mathf.Clamp01((t - 1.6f) / 1);
                 yield return null;
             }
             fade = 1;
+            if (EndingActive)
+            {
+                // No reload flags, extra handlers or second timer are created for the successful attempt.
+                knowledge.RememberExperiencedExplosion();
+                if (fromBypass) knowledge.RememberBypassExplosion();
+                ending = gameObject.AddComponent<MotelEndingSequence>();
+                flash = fade = 0;
+                yield return ending.Play(player.GetComponentInChildren<Camera>(true));
+                yield break;
+            }
             resumeAfterReload = true;
             string path = gameObject.scene.path;
             explosionReloadPath = path;
+            bypassExplosionReloadPath = fromBypass ? path : null;
             AsyncOperation loading;
             try
             {
@@ -245,6 +317,7 @@ namespace Motel
             catch (System.Exception error)
             {
                 explosionReloadPath = null;
+                bypassExplosionReloadPath = null;
                 resumeAfterReload = false;
                 SetPaused(true);
                 Debug.LogException(error, this);
@@ -253,6 +326,7 @@ namespace Motel
             if (loading == null)
             {
                 explosionReloadPath = null;
+                bypassExplosionReloadPath = null;
                 resumeAfterReload = false;
                 SetPaused(true);
                 Debug.LogError("Could not reload the motel scene.", this);
@@ -277,6 +351,7 @@ namespace Motel
             if (player == null || active != this) return;
             DrawOverlay(Color.white, flash);
             DrawOverlay(Color.black, fade);
+            if (EndingActive) return;
             if (titleStyle == null)
             {
                 titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 26, alignment = TextAnchor.MiddleCenter };
@@ -286,7 +361,7 @@ namespace Motel
             }
             if (DebugCycle)
                 GUI.Label(new Rect(12, 10, Screen.width - 24, 32), "ОТЛАДКА · полный цикл за 60 с", bodyStyle);
-            if (!Transitioning && !DialogueOpen)
+            if (!Transitioning && !DialogueOpen && !BypassOpen)
                 GUI.Label(new Rect(12, Screen.height - 36, Screen.width - 24, 30), "J — наблюдения" +
                     (paused && !observationsOpen ? "    |    F6 — обычная / отладочная скорость" : ""), bodyStyle);
             // The dialogue already owns its pause hint; keep the NPC line unobscured.

@@ -19,8 +19,8 @@ namespace Motel.Editor
         private sealed class Step { public string Name; public Func<bool> Tick; }
         private static readonly List<Step> steps = new List<Step>();
         private static int cycle, cursor, frame, firstCycle;
-        private static bool initialized, reloading, pace, playReady, waitTimed;
-        private static double stepStart, lastReport, reloadStart;
+        private static bool initialized, reloading, pace, playReady, awaitingEnding;
+        private static double stepStart, lastReport, reloadStart, endingWaitStart;
         private static MotelLoopController loop, oldLoop;
         private static FamilyEpisode family;
         private static DialogueController window;
@@ -63,8 +63,8 @@ namespace Motel.Editor
             SessionState.SetBool(Prefix + "Background", Application.runInBackground);
             SessionState.SetBool(Prefix + "ProjectBackground", PlayerSettings.runInBackground);
             SessionState.SetBool(Prefix + "Restore", true); SessionState.SetBool(Prefix + "Running", true);
-            initialized = reloading = playReady = false; cycle = firstCycle = startingCycle; cursor = frame = 0; lastReport = 0;
-            waitTimed = waitForOrdinaryTimer;
+            initialized = reloading = playReady = awaitingEnding = false; cycle = firstCycle = startingCycle; cursor = frame = 0; lastReport = 0;
+            // Keep the call signature for existing tools; four arrivals now always schedule the ending.
             File.WriteAllText("Logs/Family-PlayChecks.txt", "RUNNING: waiting for EnteredPlayMode.");
             File.WriteAllText("Logs/Family-PlayChecks-progress.txt", "Player walks at 3 m/s; Marina 1.5, Lera/Vadim 1.7, Leonid 1.2; normal 360s clock. Handler-driven dialogue has no human reading time.\n");
             EditorApplication.isPaused = false; EditorApplication.isPlaying = true;
@@ -100,7 +100,6 @@ namespace Motel.Editor
                 {
                     if (ReferenceEquals(loop, oldLoop))
                     { Require(EditorApplication.timeSinceStartup - reloadStart < 15, "Reload timeout"); return; }
-                    if (cycle == 0 && waitTimed) Require(oldLoop.Elapsed >= 360 && oldLoop.Transitioning, "Four rescues cancelled the ordinary timed accident");
                     File.AppendAllText("Logs/Family-PlayChecks-progress.txt", "RESET VERIFIED after cycle=" + cycle + " previousElapsed=" + oldLoop.Elapsed.ToString("F2") + "\n");
                     CheckReset(); reloading = false; cycle++;
                     if (cycle > SessionState.GetInt(Prefix + "LastCycle", 2))
@@ -110,10 +109,30 @@ namespace Motel.Editor
                             ? SessionState.GetBool(Prefix + "ReverseConnection", false)
                                 ? "PASS: isolated reverse fixture: Lera placed in 7 before following, physically crosses fully open connection 7→8, leaves by main door, arrives safe; cabinet/doors/family reset and user save unchanged. Not a route timing or initial gameplay position."
                                 : "PASS: isolated cycle 2 only; cabinet waits for player then slides; player crosses open connection both ways before following; Lera crosses 8→7 and is rescued without keys; distance wait/rejoin, reset restores cabinet/doors; seven facts and user save unchanged. Full four-guest routes were not rerun."
-                            : "PASS: cycles " + firstCycle + ".." + (cycle - 1) + " (times/scenarios in progress log); physical four-guest routes within 360s; player walked 3m/s with follower pacing, unchanged NPC speeds; both key sources, mother whereabouts, same-cycle parking talks and repeat talks; cycle states/keys/doors/cabinet reset, seven independent persistent facts without copies, no ending. User save unchanged. Handler-driven input, manual acceptance still required.");
+                            : "PASS: cycles " + firstCycle + ".." + (cycle - 1) + " (times/scenarios in progress log); physical four-guest rescue within 360s; player walked 3m/s with follower pacing, unchanged NPC speeds; key sources selected by tested cycles, mother whereabouts, same-cycle parking talks and repeat talks; four arrivals caused automatic ending, followed by TEST FIXTURE reload; " +
+                            (cycle > 2 ? "incomplete rescue caused normal reset; " : "") +
+                            "cycle states/keys/doors/cabinet restored, seven independent persistent facts without copies. User save unchanged. Handler-driven input, manual acceptance still required.");
                         return;
                     }
                     Resume(); BuildRoute();
+                }
+                if (awaitingEnding)
+                {
+                    Require(EditorApplication.timeSinceStartup - endingWaitStart < 35, "Automatic ending timeout");
+                    if (!loop.Transitioning) return;
+                    Require(loop.EndingActive && loop.RescueMaskAtAccident == 15, "Four arrivals must end, not reset");
+                    Require(loop.RescueAccidentAt.HasValue && Math.Abs(loop.Elapsed - loop.RescueAccidentAt.Value) < .000001,
+                        "Automatic ending did not use the arrival deadline");
+                    Require(!loop.RequestAccident(false) && !loop.RequestAccident(true), "Repeated ending request accepted");
+                    if (loop.Ending == null) return;
+                    if (loop.Ending.CurrentPhase == MotelEndingSequence.Phase.Hospital) loop.Ending.PressHand();
+                    if (loop.Ending.CurrentPhase != MotelEndingSequence.Phase.Complete) return;
+                    Require(Object.FindObjectsByType<MotelEndingSequence>().Length == 1, "Duplicate ending");
+                    File.AppendAllText("Logs/Family-PlayChecks-progress.txt", "AUTOMATIC ENDING VERIFIED cycle=" + cycle +
+                        " explosionAt=" + loop.Elapsed.ToString("F2") + "; explicit TEST FIXTURE reload follows, not a game reset.\n");
+                    awaitingEnding = false; oldLoop = loop; reloading = true; reloadStart = EditorApplication.timeSinceStartup;
+                    SceneManager.LoadScene(loop.gameObject.scene.path);
+                    return;
                 }
                 if (loop.Transitioning) return;
                 // Always resume and detect scene replacement before de-duplicating player movement.
@@ -170,7 +189,7 @@ namespace Motel.Editor
                     Require(family.MotherLocation.Contains("в номере 7"), "Past knowledge substituted for mother location");
                 });
                 ReturnMain(); Enter(7); StartMarina(false); Exit(7);
-                Walk(24.5f, 0.65f); Open("Emergency Exit"); RescueLeonid(); RescueVadim();
+                Walk(24.5f, MotelBlockoutPlan.ResidentialZ+0.65f); Open("Emergency Exit"); RescueLeonid(); RescueVadim();
                 Walk(4.8f, 0); Walk(4.8f, -11.8f); Walk(4.8f, -13.6f); Open("Main Entrance");
                 Walk(8, -13.6f); Walk(10, -16); Walk(19, -16.5f);
             }
@@ -178,7 +197,7 @@ namespace Motel.Editor
             {
                 Diagnose(); FetchSpareCane(); Walk(4.8f, -13.6f); Open("Main Entrance"); Walk(4.8f, 0);
                 Enter(7); StartMarina(true); Exit(7);
-                RescueVadim(); Walk(24.5f, 0.65f); Open("Emergency Exit"); RescueLeonid();
+                RescueVadim(); Walk(24.5f, MotelBlockoutPlan.ResidentialZ+0.65f); Open("Emergency Exit"); RescueLeonid();
                 Walk(25.4f, 0); Walk(29.2f, 0); Walk(29.2f, -12); Walk(25, -16.8f); Walk(19, -16.5f);
                 Wait("Marina at parking without Lera", () => family.Marina.CurrentStage == MarinaEvacuee.Stage.Safe);
                 Act("parking asks in same cycle", () =>
@@ -196,7 +215,7 @@ namespace Motel.Editor
                 // No key or conversation is required to enter 8 through 7.
                 Walk(1.55f, -11.4f); Walk(4.8f, -11.4f); Walk(4.8f, 0); Enter(7);
                 var r7 = Room(7); var r8 = Room(8);
-                Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(21.08f, -4.30f);
+                Walk(r7.X(2.5f), r7.Z(3.25f)); Walk(21.08f, -4.30f+MotelBlockoutPlan.ResidentialZ);
                 Act("occupied cabinet landing", () =>
                 {
                     Door("Connection 7-8").Toggle(); Require(!Door("Connection 7-8").IsOpenRequested, "Cabinet bypassed");
@@ -266,18 +285,21 @@ namespace Motel.Editor
             });
             Walk(19, -16.5f);
             Act("parking reunion", () => { Near(family.Marina); family.Marina.Interact(); Require(Line().Contains("вижу"), "Marina ignores present Lera"); window.Close(); });
-            if (cycle == 0 && waitTimed)
-                Act("wait for normal 20:22 accident after four rescues", () =>
-                { oldLoop = loop; reloading = true; reloadStart = EditorApplication.timeSinceStartup + 360 - loop.Elapsed; });
-            else Act("one accident after four rescues", BeginReload);
+            Act("wait for automatic ending after four arrivals", () =>
+            {
+                Require(loop.RescueAccidentAt.HasValue && !loop.Transitioning, "Arrival countdown missing or already expired");
+                awaitingEnding = true; endingWaitStart = EditorApplication.timeSinceStartup;
+            });
         }
 
         private static void Diagnose()
         {
-            Walk(1.55f, -11.4f); Walk(4.8f, -11.4f); Walk(4.8f, -9.2f); Open("Technical");
-            Walk(2.7f, -9.2f); Walk(2.3f, -8.3f); Close("Technical");
+            Walk(1.55f, -11.4f); Walk(4.8f, -11.4f); Walk(4.8f, MotelBlockoutPlan.TechnicalCenterZ); Open("Technical");
+            var entry=MotelTechnicalRoomSceneSetup.World(3.12f,.05f,1.0f);
+            var approach=MotelTechnicalRoomSceneSetup.World(5.22f,.05f,5.1f);
+            Walk(entry.x,entry.z); Walk(approach.x,approach.z);
             Act("diagnostic world action", () => { var panel = Object.FindAnyObjectByType<EquipmentInspection>(); Near(panel); panel.Interact(); window.Close(); Require(loop.EquipmentInspectedThisCycle, "Fresh diagnostics"); });
-            Open("Technical"); Walk(2.7f, -9.2f); Walk(4.8f, -9.2f); Walk(4.8f, 0);
+            Walk(entry.x,entry.z); Walk(4.8f,MotelBlockoutPlan.TechnicalCenterZ); Close("Technical"); Walk(4.8f, 0);
         }
         private static void StartMarina(bool getKeys)
         {
@@ -389,6 +411,7 @@ namespace Motel.Editor
         }
         private static void Walk(float x, float z)
         {
+            if (Mathf.Abs(z)<.0001f) z=MotelBlockoutPlan.ResidentialZ;
             var destination = new Vector3(x, 0, z);
             steps.Add(new Step { Name = "walk " + x + "," + z, Tick = () =>
             {
@@ -407,10 +430,13 @@ namespace Motel.Editor
         private static void BeginReload()
         {
             oldLoop = loop; Require(loop.RequestAccident(false) && !loop.RequestAccident(true) && !window.IsOpen, "One shared accident");
+            Require(loop.Outcome == MotelLoopController.AccidentOutcome.Reset && !loop.RescueAccidentAt.HasValue,
+                "Incomplete rescue must reset without an arrival countdown");
             reloading = true; reloadStart = EditorApplication.timeSinceStartup;
         }
         private static void CheckReset()
         {
+            Require(!loop.RescueAccidentAt.HasValue, "Arrival deadline survived scene reload");
             var cabinet = Object.FindAnyObjectByType<SlidingWardrobe>();
             Require(cabinet != null && !cabinet.IsMoved && Vector3.Distance(cabinet.transform.position,
                 MotelConnectionSceneSetup.WardrobeStart) < 0.001f, "Wardrobe not restored");

@@ -106,7 +106,7 @@ namespace Motel.Editor
             }
             // A ray from the corridor to the sleeping body must encounter the solid room first.
             BoxCollider target = (BoxCollider)data.FindProperty("sleepingTarget").objectReferenceValue;
-            Vector3 origin = new Vector3(room.X(3), 1.6f, 0);
+            Vector3 origin = new Vector3(room.X(3), 1.6f, MotelBlockoutPlan.ResidentialZ);
             Vector3 destination = target.bounds.center;
             Require(Physics.Raycast(origin, (destination - origin).normalized, out RaycastHit hit,
                 Vector3.Distance(origin, destination), Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) &&

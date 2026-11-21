@@ -46,7 +46,7 @@ using System;
 using Motel.Editor;
 public static class Check {
     public static int Main() {
-        try { Console.WriteLine(MotelBlockoutValidation.Validate(MotelBlockoutPlan.Create())); return 0; }
+        try { Console.WriteLine(MotelBlockoutValidation.Validate(MotelBlockoutPlan.Create())); Console.WriteLine(BypassCircuitChecks.Validate()); return 0; }
         catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }
     }
 }
@@ -59,6 +59,8 @@ public static class Check {
     $lines += '"Assets/_Project/Scripts/Editor/MotelBlockoutPlan.cs"'
     $lines += '"Assets/_Project/Scripts/Editor/MotelGuestRoomModule.cs"'
     $lines += '"Assets/_Project/Scripts/Editor/MotelBlockoutValidation.cs"'
+    $lines += '"Assets/_Project/Scripts/BypassCircuit.cs"'
+    $lines += '"Assets/_Project/Scripts/Editor/BypassCircuitChecks.cs"'
     $lines += '"' + $runner + '"'
     $checkRsp = Join-Path $outputPath 'check.rsp'
     [IO.File]::WriteAllLines($checkRsp, $lines, $utf8)

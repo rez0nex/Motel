@@ -14,9 +14,9 @@ namespace Motel.Editor
             At(room.X(1.15f), room.Z(2.9f)),
             At(room.X(1.15f), room.Z(1.7f)),
             At(room.X(0.8f), room.Z(1.7f)), // Beyond the full entrance-door swing plus body clearance.
-            At(room.X(0.8f), 0),
-            At(MotelBlockoutPlan.WingEnd - 1.2f, 0),
-            At(MotelBlockoutPlan.WingEnd + 1.7f, 0),
+            At(room.X(0.8f), MotelBlockoutPlan.ResidentialZ),
+            At(MotelBlockoutPlan.WingEnd - 1.2f, MotelBlockoutPlan.ResidentialZ),
+            At(MotelBlockoutPlan.WingEnd + 1.7f, MotelBlockoutPlan.ResidentialZ),
             At(MotelBlockoutPlan.WingEnd + 1.7f, -10),
             At(25, -18.1f),
             At(18, -18.1f)

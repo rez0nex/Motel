@@ -26,6 +26,10 @@ namespace Motel
         private FamilyEpisode family;
         private SlidingWardrobe wardrobe;
         private MotelFloorPlan floorPlan;
+        private ModuleBypassPanel bypass;
+        private ModuleBypassNote bypassNote;
+        private TechnicalHatch technicalHatch;
+        private GeneratorButton generatorButton;
         private MotelLoopController loop;
         private GUIStyle labelStyle;
 
@@ -49,6 +53,8 @@ namespace Motel
             register = null;
             leonidItem = null;
             wardrobe = null; floorPlan = null;
+            bypass = null; bypassNote = null;
+            technicalHatch = null; generatorButton = null;
             if (player == null || viewCamera == null || !player.HasControl ||
                 loop != null && loop.SuppressInteractionUI)
                 return;
@@ -73,6 +79,13 @@ namespace Motel
                 leonidItem = hit.collider.GetComponentInParent<LeonidWorldItem>();
                 wardrobe = hit.collider.GetComponentInParent<SlidingWardrobe>();
                 floorPlan = hit.collider.GetComponentInParent<MotelFloorPlan>();
+                bypass = hit.collider.GetComponentInParent<ModuleBypassPanel>();
+                bypassNote = hit.collider.GetComponentInParent<ModuleBypassNote>();
+                technicalHatch = hit.collider.GetComponentInParent<TechnicalHatch>();
+                generatorButton = hit.collider.GetComponentInParent<GeneratorButton>();
+                // An open shield is its own hinge target; activating the red cap requires aiming at the cap.
+                if (cutoff != null && technicalHatch == cutoff.Cover && technicalHatch != null && technicalHatch.IsFullyOpen)
+                    cutoff = null;
             }
 
             if (player.InteractionPressed)
@@ -89,6 +102,10 @@ namespace Motel
                 else if (leonidItem != null) leonidItem.Interact();
                 else if (wardrobe != null) wardrobe.Interact();
                 else if (floorPlan != null) floorPlan.Interact();
+                else if (bypass != null) bypass.Interact();
+                else if (bypassNote != null) bypassNote.Interact();
+                else if (generatorButton != null) generatorButton.Interact();
+                else if (technicalHatch != null) technicalHatch.Interact();
                 else if (target != null) target.Toggle();
             }
         }
@@ -137,6 +154,14 @@ namespace Motel
                     DrawLabel(wardrobe.Prompt, Screen.height * 0.5f + 24f);
                 else if (floorPlan != null)
                     DrawLabel(floorPlan.Prompt, Screen.height * 0.5f + 24f);
+                else if (bypass != null)
+                    DrawLabel(bypass.Prompt, Screen.height * 0.5f + 24f);
+                else if (bypassNote != null)
+                    DrawLabel(bypassNote.Prompt, Screen.height * 0.5f + 24f);
+                else if (generatorButton != null)
+                    DrawLabel(generatorButton.Prompt, Screen.height * 0.5f + 24f);
+                else if (technicalHatch != null)
+                    DrawLabel(technicalHatch.Prompt, Screen.height * 0.5f + 24f);
                 else if (target != null)
                     DrawLabel(target.Prompt, Screen.height * 0.5f + 24f);
             }

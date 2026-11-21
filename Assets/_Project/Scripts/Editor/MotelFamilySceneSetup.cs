@@ -10,8 +10,8 @@ namespace Motel.Editor
         {
             At(room.X(1.25f), room.Z(4)), At(room.X(1.15f), room.Z(2.9f)),
             At(room.X(1.15f), room.Z(1.7f)), At(room.X(0.8f), room.Z(1.7f)),
-            At(room.X(0.8f), 0), At(MotelBlockoutPlan.WingEnd - 1.2f, 0),
-            At(MotelBlockoutPlan.WingEnd + 1.7f, 0), At(MotelBlockoutPlan.WingEnd + 1.7f, -12),
+            At(room.X(0.8f), MotelBlockoutPlan.ResidentialZ), At(MotelBlockoutPlan.WingEnd - 1.2f, MotelBlockoutPlan.ResidentialZ),
+            At(MotelBlockoutPlan.WingEnd + 1.7f, MotelBlockoutPlan.ResidentialZ), At(MotelBlockoutPlan.WingEnd + 1.7f, -12),
             At(25, -16.8f), At(19, -17.25f)
         };
 

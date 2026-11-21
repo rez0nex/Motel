@@ -101,7 +101,7 @@ namespace Motel.Editor
             Require(!data.FindProperty("debugSixtySecondCycle").boolValue, "Saved scene must use normal 360s speed");
             Require(!((GameObject)data.FindProperty("damagedEquipment").objectReferenceValue).activeSelf, "Damage starts visible");
             var windows = objects.Where(t => t.name.EndsWith(" Window 0 Glass") || t.name.Contains(" Window ") && t.name.EndsWith(" Glass")).ToArray();
-            Require(windows.Length == 9, "Nine windows required");
+            Require(windows.Length == 10, "Ten windows including the high linen window required");
             foreach (Transform window in windows)
             {
                 Require(window.GetComponent<BoxCollider>() != null && !window.GetComponent<BoxCollider>().isTrigger, "Window is an exit");
@@ -124,7 +124,9 @@ namespace Motel.Editor
                     Vector3.Distance(node.localScale, new Vector3(box.Width, box.Height, box.Depth)) < 0.001f,
                     "Saved scene differs from generator: " + box.Name);
                 Require((node.GetComponent<BoxCollider>() != null) == box.Solid, "Collider differs: " + box.Name);
-                Require(node.GetComponent<MeshRenderer>().sharedMaterial.name == box.Material, "Material differs: " + box.Name);
+                string expectedMaterial = box.Name.StartsWith("Linen Exterior Window") ?
+                    box.Name.EndsWith("Glass") ? "Frost" : "Steel" : box.Material;
+                Require(node.GetComponent<MeshRenderer>().sharedMaterial.name == expectedMaterial, "Material differs: " + box.Name);
             }
             Require(root.Find("Doors").childCount == plan.Doors.Count, "Duplicate/missing doors");
             foreach (var door in plan.Doors)
@@ -132,12 +134,12 @@ namespace Motel.Editor
                 Transform node = root.Find("Doors/" + door.Name + (door.Operable ? "" : " (Closed)"));
                 Require(node != null, "Generated door missing: " + door.Name);
                 Quaternion rotation = Quaternion.Euler(0, door.Yaw, 0);
-                Vector3 hinge = new Vector3(door.X, 0, door.Z) - rotation * Vector3.right * (door.Width / 2);
+                Vector3 hinge = new Vector3(door.X, 0, door.Z) + rotation * new Vector3(-door.Width / 2 + door.HingeInset, 0, door.HingeNormalOffset);
                 Require(Vector3.Distance(node.localPosition, hinge) < 0.001f && Quaternion.Angle(node.localRotation, rotation) < 0.01f,
                     "Door pose differs: " + door.Name);
                 Require((node.GetComponent<PrototypeDoor>() != null) == door.Operable, "Door availability differs: " + door.Name);
                 BoxCollider panel = node.GetComponentsInChildren<BoxCollider>().Single();
-                Require(!panel.isTrigger && Math.Abs(panel.transform.localScale.x - (door.Width - 0.02f)) < 0.001f,
+                Require(!panel.isTrigger && Math.Abs(panel.transform.localScale.x - door.PanelWidth) < 0.001f,
                     "Door panel differs: " + door.Name);
             }
         }
